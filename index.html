@@ -1,34 +1,394 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Mazy Live</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 
-    <style>
-        html, body {
-            margin: 0;
-            padding: 0;
-            width: 100%;
-            height: 100%;
-            background: #000;
-        }
+<title>BGMS S5 LIVE</title>
 
-        iframe {
-            width: 100%;
-            height: 100%;
-            border: 0;
-        }
-    </style>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+
+<style>
+* {
+    box-sizing: border-box;
+}
+
+html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    min-height: 100%;
+    background: #000;
+    font-family: Arial, sans-serif;
+}
+
+.player {
+    position: relative;
+    width: 100%;
+    max-width: 1200px;
+    margin: auto;
+    background: #000;
+    overflow: hidden;
+}
+
+video {
+    display: block;
+    width: 100%;
+    aspect-ratio: 16 / 9;
+    background: #000;
+    object-fit: contain;
+}
+
+.topbar {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    padding: 12px 15px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background: linear-gradient(#000b, transparent);
+    color: white;
+    z-index: 5;
+}
+
+.title {
+    font-weight: 700;
+    font-size: 15px;
+}
+
+.live {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 12px;
+    font-weight: 700;
+}
+
+.live-dot {
+    width: 8px;
+    height: 8px;
+    background: red;
+    border-radius: 50%;
+}
+
+.controls {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    padding: 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    background: linear-gradient(transparent, #000d);
+    z-index: 5;
+}
+
+button, select {
+    background: #181818;
+    color: white;
+    border: 0;
+    border-radius: 6px;
+    padding: 8px 10px;
+    font-size: 13px;
+}
+
+button {
+    cursor: pointer;
+}
+
+.spacer {
+    flex: 1;
+}
+
+.status {
+    color: #ccc;
+    font-size: 12px;
+}
+
+.loader {
+    position: absolute;
+    inset: 0;
+    display: none;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    background: #0006;
+    z-index: 4;
+}
+
+.loader.show {
+    display: flex;
+}
+
+@media (max-width: 600px) {
+    .controls {
+        padding: 7px;
+        gap: 5px;
+    }
+
+    button, select {
+        padding: 6px 7px;
+        font-size: 11px;
+    }
+
+    .title {
+        font-size: 13px;
+    }
+}
+</style>
 </head>
 
 <body>
 
-<iframe
-    src="https://player.kick.com/mazyislive?autoplay=true"
-    allow="autoplay; fullscreen"
-    allowfullscreen>
-</iframe>
+<div class="player" id="player">
+
+    <video id="video"
+           playsinline
+           preload="auto">
+    </video>
+
+    <div class="topbar">
+        <div class="title">BGMS S5 LIVE</div>
+
+        <div class="live">
+            <span class="live-dot"></span>
+            LIVE
+        </div>
+    </div>
+
+    <div class="loader" id="loader">
+        Loading stream...
+    </div>
+
+    <div class="controls">
+
+        <button id="play">▶</button>
+
+        <button id="mute">🔊</button>
+
+        <select id="quality">
+            <option value="-1">Auto</option>
+        </select>
+
+        <span class="spacer"></span>
+
+        <span class="status" id="status">
+            LIVE
+        </span>
+
+        <button id="fullscreen">⛶</button>
+
+    </div>
+
+</div>
+
+<script>
+
+const video = document.getElementById("video");
+const player = document.getElementById("player");
+const loader = document.getElementById("loader");
+
+const playBtn = document.getElementById("play");
+const muteBtn = document.getElementById("mute");
+const quality = document.getElementById("quality");
+const fullscreenBtn = document.getElementById("fullscreen");
+const statusText = document.getElementById("status");
+
+/*
+    YAHAN APNA AUTHORIZED HLS STREAM URL DAALO
+*/
+
+const STREAM_URL = "https://fa723fc1b171.us-west-2.playback.live-video.net/api/video/v1/us-west-2.196233775518.channel.AxBWwhnwvQdT.m3u8?browser_family=chrome&browser_version=152.0&cdm=wv&device_manufacturer=OPPO&device_model=CPH2467&os_name=Android&os_version=14&platform=mobile_web&player_backend=mediaplayer&player_version=1.54.1&supported_codecs=av1,h265,h264&token=eyJhbGciOiJFUzM4NCIsInR5cCI6IkpXVCJ9.eyJhd3M6YWNjZXNzLWNvbnRyb2wtYWxsb3ctb3JpZ2luIjoiaHR0cHM6Ly9raWNrLmNvbSwgaHR0cHM6Ly8qLmtpY2suY29tLCBodHRwczovL2Vhc3lnby1kcm9wLWtpY2suY29tLCBodHRwczovLyouZWFzeWdvLWRyb3Ata2ljay5jb20sIGh0dHBzOi8va2ljay1wcmVwcm9kdWN0aW9uLmNvbSwgaHR0cHM6Ly8qLmtpY2stcHJlcHJvZHVjdGlvbi5jb20sIGh0dHBzOi8va2ljay1kZXZlbG9wbWVudC5jb20sIGh0dHBzOi8vKi5raWNrLWRldmVsb3BtZW50LmNvbSwgaHR0cHM6Ly94Ym94LmtpY2suY29tLCBodHRwczovL3BsYXlzdGF0aW9uLmtpY2suY29tLCBodHRwczovL3d3dy5nc3RhdGljLmNvbSwgaHR0cHM6Ly92YXAuZWFzeWdvLWRyb3Ata2ljay5jb20sIGh0dHBzOi8vdmFwLmtpY2suY29tLCBodHRwczovL3ZhcC5raWNrLXByZXByb2R1Y3Rpb24uY29tLCIsImF3czphZHMtcGxheWJhY2stY29uZmlnLW5hbWUiOiJtZWRpYXRhaWxvci1zc2FpLWNzYi1wcm9kdWN0aW9uLXVzLXdlc3QtMiIsImF3czphZHMtcGxheWVyLXBhcmFtcyI6eyJQbGF5ZXJSZXNldHRhYmxlQ29uc2VudFR5cGUiOiIiLCJQbGF5ZXJSZXNldHRhYmxlSUQiOiIiLCJhdXRvcGxheUJlaGF2aW91ciI6ImNsaWNrIiwiYm90U2NvcmUiOiIwIiwiYnJvd3NlckxhbmciOiJlbiIsImNoYW5uZWxJZCI6IjEwNzQzNTY0NiIsImNvbnRlbnRDYXRlZ29yaWVzIjoiIiwiY29udGVudENhdGVnb3J5U3VtIjoiIiwiY29udGVudEdlbnJlcyI6IiIsImNvbnRlbnRNYXR1cmVSZXN0cmljdGlvbiI6IiIsImNvbnRlbnRTdWJHZW5yZXMiOiIiLCJjcmVhdG9yTGFuZ3VhZ2UiOiIiLCJjcmVhdG9yTmFtZSI6IiIsImNyZWF0b3JUaWVyIjoiIiwiaXNMYXQiOiIwIiwibW9kZXJhdG9yV2FybmluZyI6IiIsIm5vblBlcnNvbmFsaXNlZEFkcyI6IjAiLCJwYWxOb25jZSI6IkFRenpCR1FFc0txVG4tREhKaV9FMW9hdkpkdUg5MFJuZTBMUUlhazlLamlxcVNUUDhndXlySjVKcVBzMzhuY1Z6OUhhZWVxMW9ldmZJY3RVZVptSlBFc1JJOGRadnVBS1haeWdyMkNleEdyWVdTYUpyMXhwQmprTWU1WmIza1Zhd2phNWwzNldfaWFZVWhPTm00V010NUEzaTBVeW9jaGdiOGJ1a2VUckhMZC02bHZUN2FfMXFBdi12OXcza0pOenFVYjJmQ3Z6bzRNNDZmaWxmLVRQRXdONm1oU3BsUml2YjlTbXJXV25vM3A4WDQ4Sk55M2pJb0pQOUoyWFhGVTBTa21iZmpDSG9ZTUR5bzRMRGpUWE1nZkN6Skt0M2dSU3VxbzZZZ0ZYY0p2Y3NPQlpkNng3REVhRXZrQVFBZEVLVkFtWnN4amdQeElzUGxjVEVQSF9ZRkJPUkFsbjUwaWtZc3pVRi0wUXBDUmhseFEwX3hwMXR0eTFjVGM5VXVGNHdZRzZMZ1cyQWtTWUo4ajhNQzlBQ2dpMWswWU1fTjg2OW8ySWwzbGt5b0tyME9BSkx1c3d3UHUtNEJuejhRVDB2YnM0Y25OWWN3azFrckxQcTRhZFIzbUtDMkRFSktxS3hTLS13UlRURTlpeGJYb0ktMDVUc0lEQzdmLVNRV0lZZHp2Qnd1Yl9FVnBVMWY5b0ttbENYSWxlM2pLSFpJbmVHZTFDNTBZZlNFUTB4bE9waVZ4MDlPMVZtN0RtbHpmeDBweU9WUy1aY0kwU0doRTgtV2doeW1EeWY5OTdfejVYX01nZ3VELWtLbVZKVHptem9tTndfVEJIbGtUajQ3cl9JaTgtci13TWt1cldEc2JFLUxMUU9CT1U2dF9sWkpocU9pTFpzUXlGYnJ6V29KVlo4WUFFMHJjbENnY29Wc1pKWE5udkVWV2pXOE9KQ2xXLTNNWTZHV25YQlV4UXBEWVMxQzhPeEdRMkZ0UzhuZ1YyUVNoa0FyVkNVcUFFWktUYk9hNDV5ZzNFVlZUay1QdEZjVXhWWC1md1ZLbHZkSERva0xmTGMxeERUTXhpZklqU0xxZVdtTXl0NXdha1BHVW90Nk5kcjI4Nl9MZmRyQURuVnl3S1RLdzh1RHcxSV91N0oxTkFOV0VSZ0JqVEc4MThYQk9vY0c0d050dnkzSUFOcm1GSjJJR1FiWm01eGx4anNsMkpseXZfSlVUZ18yM0pkVlhZMm5naUd4d3RlLTFsLVhzLWhnZ0tPSjd4ZTBuaWpkVG15Z2dyLW02SU5zUS01RmYwdFVzRXBCREN2bHZQanpXSDlUYmJTQ1BMWnFhWl9aYXNRbDlSV19iOFFuQkxzMlpFMUtxSXl3QUE2SXlrRFRSLWdBWGh4akJ1b0R4dHZ2WERXQktlcDZjRW1seFQyUDRFQmVVdEZMZUU2X3M4eHV4T0hQS1dVTndaeGgtbnlfYUI2VkhiWWhoX002cTRfcEM2Y0V0SXBRTGNZWERVQW1uV3VHQmRsczdLNFBJNXNTTEVPN01Lak4ySkV4U1NWQzRoWTExcVliMGp2U2ZpNGpBa2JMdUtESm50alAxbXZTX1FnY2stVzVDRk0tcExzWFB5UDN3Uk1uQlV6ck5XUFIxRG91LXV3Mml5UC1TX2t6aTlYS29WVFQwY0Vqekl6cW5OU01CWXZBSUZMVWJBOHFkaERtanQ2SGNxblBEajZ1eGJLajlEWEY5MVlBQ0FnYzVOd3ZyV1NoWkd6YUFwLUl0RlB2ZHdWQzJGMDl5MGZ2TmY5Z19ZemRPSkc2X2J3UTkyRW1NaERPdElXWmhuak5RY0lFcTZVaEE2Q2FZSG5tS05mSE9jLWVYaXZ2b0kyMU10N1dCQXZSNmtiQ3gta1l5VGtPQ21hekhfWE95UjlpUWpJNTRQZjJaenNmTm8iLCJwbGF5TXV0ZWQiOiIwIiwicGxheWVyRGV2aWNlSWQiOiI2N2Q4NTVhYi1kNWJiLTRlZjUtODg0ZC0xMDk1ODMzOTRhNDciLCJwbGF5ZXJfbmFtZSI6IndlYl9tb2JpbGUiLCJzaGFkb3dCYW4iOiIiLCJ1cmxQYXRoIjoic291bGFtYW4iLCJ2aWRlb0lkIjoiMDFhMDcwNzktYWYxMC03YWYyLTg4OWEtM2I1MzBmOGQ2NDExIiwidmlkZW9TdHJlYW1UeXBlIjoiIiwidmlld2VyVGllciI6ImFub255bW91cyIsInZpZXdlclVzZXJJZCI6Ijg3YjM3MzRjY2JlYjE3ZGYzYzc3ZmI1Y2RiYTE5Y2ZiNDg5NzQwYjVhYWY4NmU0YzFmYjIxYWM4YWQxMzNmNWUifSwiYXdzOmFkcy1yZXBvcnRpbmctbW9kZSI6IkNMSUVOVCIsImF3czpjaGFubmVsLWFybiI6ImFybjphd3M6aXZzOnVzLXdlc3QtMjoxOTYyMzM3NzU1MTg6Y2hhbm5lbC9BeEJXd2hud3ZRZFQiLCJhd3M6c3RyaWN0LW9yaWdpbi1lbmZvcmNlbWVudCI6ZmFsc2UsImV4cCI6MTc4ODU5NzcwNX0.0qI9sOGG5hlVibR37Pp4rHO3xtm_CoDO16HMKeKTksaS886byODhy3V8B7SWC6N6Rj70kkwHoZcZZcQ_41vFdN02BouCvSd6jDDzjoTnprEr-Gf_3E1p2G4ENiF0hb-B";
+
+let hls = null;
+
+
+/* -----------------------------
+   HLS SETUP
+----------------------------- */
+
+if (Hls.isSupported()) {
+
+    hls = new Hls({
+        enableWorker: true,
+        lowLatencyMode: true
+    });
+
+    hls.loadSource(STREAM_URL);
+    hls.attachMedia(video);
+
+    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+
+        loader.classList.remove("show");
+
+        quality.innerHTML =
+            '<option value="-1">Auto</option>';
+
+        hls.levels.forEach((level, index) => {
+
+            const option = document.createElement("option");
+
+            option.value = index;
+
+            const height = level.height || "?";
+
+            option.textContent = height + "p";
+
+            quality.appendChild(option);
+
+        });
+
+    });
+
+    hls.on(Hls.Events.ERROR, function(event, data) {
+
+        if (data.fatal) {
+
+            statusText.textContent = "RECONNECTING...";
+
+            setTimeout(() => {
+
+                hls.destroy();
+
+                hls = new Hls({
+                    enableWorker: true,
+                    lowLatencyMode: true
+                });
+
+                hls.loadSource(STREAM_URL);
+                hls.attachMedia(video);
+
+            }, 3000);
+        }
+
+    });
+
+}
+
+
+/* -----------------------------
+   NATIVE HLS
+----------------------------- */
+
+else if (
+    video.canPlayType(
+        "application/vnd.apple.mpegurl"
+    )
+) {
+
+    video.src = STREAM_URL;
+
+}
+
+
+/* -----------------------------
+   PLAY / PAUSE
+----------------------------- */
+
+playBtn.onclick = function() {
+
+    if (video.paused) {
+
+        video.play();
+
+        playBtn.textContent = "⏸";
+
+    } else {
+
+        video.pause();
+
+        playBtn.textContent = "▶";
+
+    }
+
+};
+
+
+/* -----------------------------
+   MUTE
+----------------------------- */
+
+muteBtn.onclick = function() {
+
+    video.muted = !video.muted;
+
+    muteBtn.textContent =
+        video.muted ? "🔇" : "🔊";
+
+};
+
+
+/* -----------------------------
+   QUALITY
+----------------------------- */
+
+quality.onchange = function() {
+
+    if (!hls) return;
+
+    const selected = parseInt(
+        quality.value
+    );
+
+    hls.currentLevel = selected;
+
+};
+
+
+/* -----------------------------
+   FULLSCREEN
+----------------------------- */
+
+fullscreenBtn.onclick = function() {
+
+    if (!document.fullscreenElement) {
+
+        player.requestFullscreen();
+
+    } else {
+
+        document.exitFullscreen();
+
+    }
+
+};
+
+
+/* -----------------------------
+   LOADING
+----------------------------- */
+
+video.addEventListener("waiting", function() {
+
+    loader.classList.add("show");
+
+});
+
+video.addEventListener("playing", function() {
+
+    loader.classList.remove("show");
+
+    statusText.textContent = "LIVE";
+
+    playBtn.textContent = "⏸";
+
+});
+
+
+/* -----------------------------
+   START
+----------------------------- */
+
+video.addEventListener("loadedmetadata", function() {
+
+    video.play().catch(() => {});
+
+});
+
+</script>
 
 </body>
 </html>
