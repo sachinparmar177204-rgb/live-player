@@ -3,55 +3,32 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Stream</title>
-
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+    <title>Mazy Live</title>
 
     <style>
-        body {
+        html, body {
             margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
             background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
         }
 
-        video {
+        iframe {
             width: 100%;
-            max-width: 1200px;
-            height: auto;
+            height: 100%;
+            border: 0;
         }
     </style>
 </head>
 
 <body>
 
-<video id="video" controls autoplay playsinline></video>
-
-<script>
-    const video = document.getElementById('video');
-
-    const streamURL = 'https://fa723fc1b171.aps33.playlist.live-video.net/v1/playlist/CskLO06MplI4eeUC-6LCgdP_Pvh_3n6fcGKuWGf2T6JNMBkGTgDnYDk-Sqz1eQcN1DD4-dANlVBAB9xuAmRpEA4wJ2ey-wAuOZniOVC-EuNU5iAeMOEf5hmymGMahheU8kNnkpxgYXGHB0XdNlkAYP6vvnRs-2oBKfMlM4z43vECcJSemyGf8m6EwLaowKSHmrGzzvVXHGJy83klsQuQeQ1NiAg1w58wOIaLtErMyVjesqc8Tex3UQ60A4nyC8-5hWeYtg7UOz3I5XiuHcK7D6XR-pQE3inm8np0o21iTtuRoPzKNg2dAkMndWH0K5fzZ-UDBdPmQabDfipKb_6x44HTsUeofC8QMWfvWzCCFUICMx3Bx77UqBiVssqH_5sVmriAM___65nnGydWMrdGNlxKZdaf5zP9_XME5bgUo_kckzL7r4FPNrZM3Pg4YI6vdjxAL0BIKsKrxvsi9fW_2VS9jD5Q15W9hoBwNuY6dqRrV3EEvG7n2IlsOT4yBGYm821FuyIO4hgow1VeY97kCVXsx__QldM9rD_cSVKz1MiiwmlNq-cPqWmV5FcvWfk_UegP54kiCtZB4CqZYaHnmjwlBQHWrnxZCymAIiacYmDDCceCRpf7wALnVvLGB1bww1f9YWK9cDKyZQlLx7zvaKDJ_yiYr_vumQYFgrTbKNz_t4WWhyWivZRHj5Ok9_E3bEWhJLBgCxVLSns0ov3p9zEvuO4mIXaqijAJZOPslQc8FadKfN1xOCrJC5UtmQLz3n8QVpRgvEyVbux0RzHqvCBl0k0Tpz44-8YiANMtn7W8sJG0k34ddQZcjFRdxBfXpj34bxclroECR6FH9C2nYIQrTUu-mkUo6ldtdFweeV72fisJ1fv3FRrd2jgMUrU42HuGtKwFgtSpsqiiTKkCt0xDxTJLROWqcJhjHRfYpgZr-uWZqKIHkcbi0WmAvw3_Oirny2QzSTjtuuIvMaCfENAVKdXPRvUQd1wpVbyuyJyFul7PG7UtyrskbbwgYV987YcV0gLdD84DAFnRW67Gf1P3dr1-yuoW-29_V0QBcG9nxeEnZRPBJPVmgIMJFQNqIkNpf9aU6uNoF8btPpZBbomK07B6uSuPfytISGpRUMJPLFG0GqpU0dyLI9XFVaodEDEq02f7qNyC_sPE-onv3_rx1IYft-J0plP2zOIv-T8dQ6-AHOGcVj6oXy77LY9mr_-P0gG_4OGGFO6lfZNLeExr-8Dsk3cIrUBqDvpImqiJGiu7W34XCHWlwRX6Yv-sNNHNveCx88EQqhreBE1MV6j1Bn-bdbn_ScPBDaU1GOKfAqVtZavT3ffSav3wIG5sflIEq9acVJK71i8cqK88tffdLuq9aWOaHKs0jMOeoodw0Nf7HDMGCy0KRtvJNc-3wGZBSMZuw3inXCDBv5nQmozjgTxUYRAdal9enMj8CKbMT-qYfXUhlO_0HsV2WHRHFN6w6KrPYx2lu_tA02zma_CXEy-mpQTNTvKBTqXDgPyIUVwZvr0pTy34pvI-opDuUd-JOMJ6nkKRGzIo44tLOGucFsVSefFHe5tSDJwIwJeDLNAY5mWi92r7474f7O7Rm4DsLeEUx6wushqZYFsAOiz8YMe3rw0x0aUTh2Pm6YvyN1vIqqjCbyMM0bzOpe4t_690EF-vdmOThYUd9gDIYbZLU5Ukc8E38QV_3OqUzswFgBUQLlGegLalLOzf5iAzAFea32FVzjOGa1KuX87kK35zwLSmXsrdSl2i1pCiuCvekocRWovi6mCCxZvSR1dKpXK9YxwImn2bI6uGPXT7BH4VehMPho56TxZg-G2q-ovCDdfkegS20Qn9isfWJuIYssgZX0qD6Vt6-JfY8i-SOJHZgg5NUqyUlnVGVwAlfIVzCObzXaquuK-Y2WjRKOOjuCiD4eOqmKl09RzUc5zGonTDsbVwy7M7h9Nj5M2cyf9rEJbQtWUoBrmGRQcaDBMcuwtQE49MNZruoyABKgl1cy13ZXN0LTIwgBA.m3u8';
-
-    if (Hls.isSupported()) {
-        const hls = new Hls();
-
-        hls.loadSource(streamURL);
-        hls.attachMedia(video);
-
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-            video.play();
-        });
-
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = streamURL;
-
-        video.addEventListener('loadedmetadata', function () {
-            video.play();
-        });
-    }
-</script>
+<iframe
+    src="https://player.kick.com/mazyislive?autoplay=true"
+    allow="autoplay; fullscreen"
+    allowfullscreen>
+</iframe>
 
 </body>
 </html>
