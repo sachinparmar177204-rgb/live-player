@@ -2,142 +2,372 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="viewport"
+      content="width=device-width, initial-scale=1.0,
+               maximum-scale=1.0, user-scalable=no">
 
-<title>BGMS S5 LIVE</title>
+<title>Live Player</title>
 
 <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
 <style>
+
 * {
     box-sizing: border-box;
+    -webkit-tap-highlight-color: transparent;
 }
 
-html, body {
+html,
+body {
     margin: 0;
     padding: 0;
     width: 100%;
-    min-height: 100%;
+    height: 100%;
     background: #000;
-    font-family: Arial, sans-serif;
+    overflow: hidden;
+    font-family: Arial, Helvetica, sans-serif;
 }
 
 .player {
     position: relative;
     width: 100%;
-    max-width: 1200px;
-    margin: auto;
+    height: 100%;
     background: #000;
     overflow: hidden;
+    cursor: default;
 }
 
 video {
-    display: block;
+    position: absolute;
+    inset: 0;
     width: 100%;
-    aspect-ratio: 16 / 9;
-    background: #000;
+    height: 100%;
     object-fit: contain;
+    background: #000;
 }
 
-.topbar {
+/* =========================
+   CENTER PLAY BUTTON
+========================= */
+
+.center-play {
+    position: absolute;
+    left: 50%;
+    top: 50%;
+    transform: translate(-50%, -50%);
+
+    width: 68px;
+    height: 68px;
+
+    border: 0;
+    border-radius: 50%;
+
+    background: rgba(20,20,20,.82);
+    color: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 27px;
+
+    cursor: pointer;
+
+    opacity: 0;
+    pointer-events: none;
+
+    transition:
+        opacity .2s ease,
+        transform .2s ease;
+}
+
+.center-play.show {
+    opacity: 1;
+    pointer-events: auto;
+}
+
+.center-play:active {
+    transform: translate(-50%, -50%) scale(.92);
+}
+
+/* =========================
+   TOP GRADIENT
+========================= */
+
+.top-gradient {
     position: absolute;
     top: 0;
     left: 0;
     right: 0;
-    padding: 12px 15px;
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    background: linear-gradient(#000b, transparent);
-    color: white;
-    z-index: 5;
+
+    height: 100px;
+
+    background: linear-gradient(
+        to bottom,
+        rgba(0,0,0,.55),
+        transparent
+    );
+
+    opacity: 0;
+
+    transition: opacity .25s ease;
+
+    pointer-events: none;
 }
 
-.title {
-    font-weight: 700;
-    font-size: 15px;
-}
-
-.live {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    font-size: 12px;
-    font-weight: 700;
-}
-
-.live-dot {
-    width: 8px;
-    height: 8px;
-    background: red;
-    border-radius: 50%;
-}
+/* =========================
+   BOTTOM CONTROLS
+========================= */
 
 .controls {
     position: absolute;
+
     left: 0;
     right: 0;
     bottom: 0;
-    padding: 12px;
+
+    padding:
+        38px 15px 13px;
+
+    background: linear-gradient(
+        to top,
+        rgba(0,0,0,.85),
+        rgba(0,0,0,.35),
+        transparent
+    );
+
     display: flex;
     align-items: center;
-    gap: 10px;
-    background: linear-gradient(transparent, #000d);
-    z-index: 5;
+
+    gap: 9px;
+
+    opacity: 0;
+
+    transform: translateY(8px);
+
+    transition:
+        opacity .25s ease,
+        transform .25s ease;
+
+    pointer-events: none;
 }
 
-button, select {
-    background: #181818;
-    color: white;
+.player.controls-visible .controls {
+    opacity: 1;
+    transform: translateY(0);
+    pointer-events: auto;
+}
+
+.player.controls-visible .top-gradient {
+    opacity: 1;
+}
+
+/* =========================
+   BUTTONS
+========================= */
+
+.control-btn {
+    width: 38px;
+    height: 38px;
+
     border: 0;
-    border-radius: 6px;
-    padding: 8px 10px;
-    font-size: 13px;
+    border-radius: 8px;
+
+    background: rgba(30,30,30,.78);
+
+    color: white;
+
+    display: flex;
+    align-items: center;
+    justify-content: center;
+
+    font-size: 17px;
+
+    cursor: pointer;
+
+    transition: background .15s ease;
 }
 
-button {
+.control-btn:active {
+    background: rgba(80,80,80,.85);
+}
+
+/* =========================
+   QUALITY
+========================= */
+
+.quality {
+    height: 38px;
+
+    padding: 0 10px;
+
+    border: 0;
+    border-radius: 8px;
+
+    background: rgba(30,30,30,.78);
+
+    color: white;
+
+    outline: none;
+
+    font-size: 13px;
+
     cursor: pointer;
 }
+
+/* =========================
+   SPACER
+========================= */
 
 .spacer {
     flex: 1;
 }
 
-.status {
-    color: #ccc;
+/* =========================
+   LIVE INDICATOR
+========================= */
+
+.live-indicator {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+
+    color: white;
+
     font-size: 12px;
+    font-weight: 700;
+
+    padding: 0 5px;
 }
+
+.live-dot {
+    width: 7px;
+    height: 7px;
+
+    background: #ff2020;
+
+    border-radius: 50%;
+}
+
+/* =========================
+   LOADING
+========================= */
 
 .loader {
     position: absolute;
-    inset: 0;
-    display: none;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    background: #0006;
-    z-index: 4;
+
+    left: 50%;
+    top: 50%;
+
+    transform: translate(-50%, -50%);
+
+    width: 42px;
+    height: 42px;
+
+    border: 3px solid rgba(255,255,255,.25);
+    border-top-color: white;
+
+    border-radius: 50%;
+
+    animation: spin .75s linear infinite;
+
+    opacity: 0;
+    pointer-events: none;
+
+    transition: opacity .2s ease;
 }
 
 .loader.show {
-    display: flex;
+    opacity: 1;
 }
 
+@keyframes spin {
+
+    to {
+        transform:
+            translate(-50%, -50%)
+            rotate(360deg);
+    }
+
+}
+
+/* =========================
+   ERROR
+========================= */
+
+.error {
+    position: absolute;
+
+    left: 50%;
+    top: 55%;
+
+    transform: translate(-50%, -50%);
+
+    color: #aaa;
+
+    font-size: 14px;
+
+    text-align: center;
+
+    opacity: 0;
+
+    pointer-events: none;
+}
+
+.error.show {
+    opacity: 1;
+}
+
+/* =========================
+   MOBILE
+========================= */
+
 @media (max-width: 600px) {
+
     .controls {
-        padding: 7px;
+        padding:
+            35px 9px 9px;
+
         gap: 5px;
     }
 
-    button, select {
-        padding: 6px 7px;
-        font-size: 11px;
+    .control-btn {
+        width: 35px;
+        height: 35px;
+
+        border-radius: 7px;
+
+        font-size: 15px;
     }
 
-    .title {
-        font-size: 13px;
+    .quality {
+        height: 35px;
+
+        padding: 0 7px;
+
+        font-size: 12px;
     }
+
+    .live-indicator {
+        font-size: 10px;
+    }
+
 }
+
+/* =========================
+   FULLSCREEN
+========================= */
+
+.player:fullscreen {
+    width: 100vw;
+    height: 100vh;
+}
+
+.player:-webkit-full-screen {
+    width: 100vw;
+    height: 100vh;
+}
+
 </style>
 </head>
 
@@ -145,248 +375,595 @@ button {
 
 <div class="player" id="player">
 
-    <video id="video"
-           playsinline
-           preload="auto">
+    <video
+        id="video"
+        playsinline
+        preload="auto">
     </video>
 
-    <div class="topbar">
-        <div class="title">BGMS S5 LIVE</div>
+    <div class="top-gradient"></div>
 
-        <div class="live">
+    <div class="loader" id="loader"></div>
+
+    <div class="error" id="error">
+        Stream unavailable
+    </div>
+
+    <button
+        class="center-play"
+        id="centerPlay">
+        ▶
+    </button>
+
+    <div class="controls" id="controls">
+
+        <button
+            class="control-btn"
+            id="playBtn">
+            ▶
+        </button>
+
+        <button
+            class="control-btn"
+            id="muteBtn">
+            🔊
+        </button>
+
+        <select
+            class="quality"
+            id="quality">
+
+            <option value="-1">
+                Auto
+            </option>
+
+        </select>
+
+        <div class="spacer"></div>
+
+        <div class="live-indicator">
             <span class="live-dot"></span>
             LIVE
         </div>
-    </div>
 
-    <div class="loader" id="loader">
-        Loading stream...
-    </div>
-
-    <div class="controls">
-
-        <button id="play">▶</button>
-
-        <button id="mute">🔊</button>
-
-        <select id="quality">
-            <option value="-1">Auto</option>
-        </select>
-
-        <span class="spacer"></span>
-
-        <span class="status" id="status">
-            LIVE
-        </span>
-
-        <button id="fullscreen">⛶</button>
+        <button
+            class="control-btn"
+            id="fullscreenBtn">
+            ⛶
+        </button>
 
     </div>
 
 </div>
 
+
 <script>
 
-const video = document.getElementById("video");
-const player = document.getElementById("player");
-const loader = document.getElementById("loader");
+/* ==================================
+   ELEMENTS
+================================== */
 
-const playBtn = document.getElementById("play");
-const muteBtn = document.getElementById("mute");
-const quality = document.getElementById("quality");
-const fullscreenBtn = document.getElementById("fullscreen");
-const statusText = document.getElementById("status");
+const player =
+    document.getElementById("player");
 
-/*
-    YAHAN APNA AUTHORIZED HLS STREAM URL DAALO
-*/
+const video =
+    document.getElementById("video");
 
-const STREAM_URL = "https://fa723fc1b171.aps32.playlist.live-video.net/v1/playlist/CoYe9oP-G-zijk9N1M6bt31kV7iUoFWWg_0it9FfPfriWzPv9Ae_0NlUNy5gEP93WIRQadC56yjy3ZRPb0QXFYBxqll-z30ALG1cQq4W3FFE-xcg5DdcwycNckok0yMRxj-slU0w4f1fC3_0aeM6H3hsHo_Xm7Mjh0FMiu8KiJLsmJcL_posftnR5nl4xHgcCKh5Smp8RljsBcUZHU7Vlcn8OdLasWWDWk1wyklozkCPmmrU9mtC5uydgIYlY-N0deHMqj_UBJkd1KA8wFPAU8btc6Il9u6S1PwHjm13FKg9j337IRtsbj0cW4dGiWa0w6bumjY28Tu3DAhq1iW90R5qd5mPAscJ4-mZoKnnGxWUaAbtISSzs-dO9HpYtLGCSWMBZ1Tja9yAXAPwxlrKwzwkBxYHpSEfL4lqg12tOlpzvGacS7B-ygMJckeLi6B58hxTrwJ9W-5bJQHP8snxFzwpe8oxDRTDzw2hYNiFw7QTVIjaIpWUweO2-0WGbfNwzpH54-rJR4Z9vMzyQFZn6ItQqwTzDZLegTXUb1VChpSItvEEIrnRfT5BQr5MuLxGRVwhxGJng23d8fWHBipMmEZOUhoGwkB-iycCSS1rZATvWpKaqXFaC1DlAyfVztKqAEh1hDBQeW-7z74VhRhEfng--uiaT7T_q0mP3rDr2ZyrWLxg9dj5966rDgBExOcgIKU2g_J_FFmQiSUzi6FGsUa5haESDBTXA1zDUx_QTK8aZK5jU8NulOTNXvNLIKISZgjZsh3VUGV3c9sIC0vQrNNz830aQQ-LcbzLKQJAAt15XQLGq3Z9B6LkC6RvnKxpPE7DewzpasWrdprcOhg2k71THcR1mdWTwkqVg4kRmd4j60fm3xTkj-9DTImkr4r70hRr5yO70iW1PSiiVOW6TFTU7yyq-OGoNmMUgbGWNKRhUMpLieOppCeJE9KmmhLIr_AephnWR30TPlMkxkJkoc4U_Qxhwthf5_Hq5aE1w1LE0G0-dkCcxjscUNNApy4cyb8tor8Y10nGGWFsfKA8yILPoOqIO9TF2rs3fMu6tWgo3Lo0thwAxa3UTg2iDCqPuQUJAsjFZJZAWEFqbxqIw34PinmGw3Iu7EK8T-Dt252XWUE3h4wqUxp1-2l9Xtaz3w04dw-AQ8QZ0cbzN7hfbJJMX3yrDTD9Z1nmRvzhwhwwT44cWDes9U1ot3toL-8vE2rIih8pnjsBi2tlK4lsZYvsTcWfNQInx2IYPaYBPMY1OdYdbYSpAilDBPmKExxICP6LwKGGHhlIN3iHGibCbDFgxnWTpGAcChF2wpyH5r-IYtw8wHJ_iUH697utAyhVxvA0xl-4vAY_KUSI8omMFEnIQOofTy9_acxa2B0mSOM9rI4gofSBPDfSPsm8V-aoX_UwxqwM4hTUCxGKAhamCx5SEr4FOVpVoSW6EKLtq6NQ8aabjwwoskN5LmNtXNDK-n2aBCil0t97UMBNQErzTWXVxtQpMGOQlvCs0lwYqULaaTxeu-bcf9BDE3eFSrEcSBOydwEtdGHxTkGv1y6NkTXKdmihyqHAXsFRenIgQ3E0KuLr1EFyDy_-Pq1WVgyNmnzi4SGjQEk9nKFby5E31UBF8nEIr2YrqfdyxcSQayP3kmsYLtyMbrN2PqST92750EKA3b_be1BikGd8LR-TPG8017c4wRF63VSZkYyeN6HiTeAN5dnkhmsvFvodvuwTC5DRY-nfk6lIJaWBYwk-krrIt2OYC6IQ_XWCFxYXjVUTnGYlWGkqZg-vjwiSWok2xWAM6YH304-gTVgq0NXuAH57ZLaFLcAiSSBSnS5LGFk5TdOwjvf08vUALR5r0zu_UaaWWKiWhjjh7D0Ofbfhzhivvf-XuqBrNM_o0itQxBoESw5Zkb65ukZHjFSS-YXQ4tghhWPEw5vaJWlAQH3jUfcXLu3R8gH3eGrlL9pOQK4aArOeHlyqnQ-ZqbxiXZH7eA1S2Gclgf6y5mTJnTLfIROPko1tYXqTG5bHGmfYH0U4p3jVCawDjEYVqVOrQboxASx-aT_nKSmqHEM81LoVbXbD7Opdkd6w2eQz66jbknkUKEpEMBfnJkqGNhqabLIJccwokXgxFldNbEVNszP0_Oqby1IDal1qNomn4CmlpaAnMIXjTWtR1YBCJ1BN-ymsK0Fx0Q6VBnFUAu7nr7GLb7flwVPO6SZ9SFfr5up3TKKLpbjLjx1LDsRhdwUyT73iMe4LOpVNvZdKVb_jj_d0tkIqsInAHLtWervUjMdjGo5-nUaA028Q1LbBzHnhkMxoPjFiFO4xWYojIQqdXJrfoWdbk2z9ioyRQLSUkQGH3447CDVA4tSX775X8iE94prK3jARXrsr2ufHqr-7jx5nlC1Vw9wkLJgtU3qqkiV-FxCR4IoHuvaWVgfuSca3PXEMKsgS4hpa0mDioqKHhcmcaQyRVprWyyy1AQst9U6gnt8LeMmPu9H2fsJoEfHY41rmKYJCfkOsgSmWpT9FUfiWP9ckzZcltKFGQD3Rs41163HBsh_n20BpHZ4cC66KrHAcoaTUuZfRhqnQo1ePIZ6L0OaYKsMWByFDeADvMgI4Jta25tDIelcFOer7g3n_35-2SMhYvXSevymtT7ohmBonRrCARxWdvVKgMkHDGlFg0d9jarAlYPvMKSmCvVma9wNVDpC-zVT8s7Uy3-CNF1F62lqPJfc4Eap_rsOzVJplq0qOzUQEjf-yT768tUZEcmKC7bIUjbDq_8kSYehaIgWJm8aHaDb5qpLR_2Hhz5dEA84IR3YOiaPfWal4zEmT4knLZpAaGYvmKri4l-gA6XiaktAb0WfLwFpbAszVNt3ZxSugq6krODOz7PNs_lSZkUKaQHxzrjQjOvc-mPKeUGIkeVRV8ubj6FcK9x8JUtVpdyeyZh-VPjfzgUs4JcSCGvRxvvot3fr2HcNmss07praO7PvgxfK-A0YyW-VMkzQimhcfS0M4Zhh5colSYdYTgn-rVfdeIrQMoE5zaIlSINDkf_N-AgMd7Xztrzxp11dN3WMBSGI1mkgc3HF0oQbuVX40npgRPb8Ek9QJtgJ8e3BXNczk1sG53f6DUQmszOfEusNLcf0yaG8OnnA7ZAsMAn6FpP5TFlXpFqGEBZyNmmUOKhuaOOW0jAWX0f46YsEFZydMX95-tGdGZskbWWw86dhZmHsk2IVUR-QZImqgZ78hfyDLOstBmcWRpc5IT_d9tRtH8XVsokDIhz_gv_cQ7-L_uR5For6dpKKhFaW_rxFw24nnLMBaj00EqlKxS25kZW4zICOyDjDaMZfs1-yqKh9oL5xiA3QwWevfx-gipYcD01kl9SgY4oDaAwCPIA3Sssx7ZhUNsma4IBmZaw_44xzJUeownoIqk4UFb_C2O2k7UFXzXhdy-xhtwClCfVFTwG9cvnrSfCdlntoY0yWOntKOUJnxBBjIoAGnTksIJhwvfYf58NqzRYA1LsF510jWBWQcLw2RxRVgk7GVLM5kOVHUHDk2P5HThiUxajC6YYdwr6wzzZznENuK3Uoojp8GwHc24jZl0-0g173FsiZ3sLHGECt4dBXNWE7eLh9NmxCNEVQVPXATcj_11Nsq9izJnJrtNqUjFwaF3iuEAYKUHvKzgzcJru0H40eYAg-M1uFkAf29xWTUvrHIV_1Y8meTh5TfzzFqIZzRgygnNYbGJVhWuFL0FMg5tepCTj-6sdKRvxXMgpXiBASufGqPpZQKGro8gfvy2wltOB7EHfErmkoqc85RbVEZ8OK3RoVovZtK8BHqWuUoQIQ87lTrhltPLT1NHnZDAtqykgbe4Hr9pf1KjPPBb2QJwv9q3kxWuITGlHSmZBsPIT-M4Uhdm8f5xF9SUUe2sQPGD-zwnnXkPrG-5B5vk1wpW7LWYFETMvnuLa9tn8NXXWX4mpRK4U8do32G0g4i786F5ZTAngymeZMHCMkeB_YcesKb4nwgfmzANP4q0O4-PJnvEp-4KnpzkW3_2dkibTcU36HOo7amzG38EbveFV5mrdskk3dgIMCaHzKqjKUfESpFXcmU-B0R70byP-l0iLNXbL7lfFmwR4h6Zy3oWdDoLBB1pLLvelh1m6qeA10LYvIAi6q9PIpXvpybkXy5gawnmB1tgTSzSl8fqBj1ra2XST2FuKj2aIV6NJKf3GbcklIUQkLIu2FzOsQMr79J7KGS_NDUN8fzM6qZNEfpUcSO5uDIQzoKHn-dMsdU41kjXQcsZ2RBNbJ90obG6N0jFDwWV9v-fJO2EV6o68YZYOXf7VxMjhSKeMVDplcXFdwJ5rZUBGXJhc-SmvQDBme5FdwpFMWMNnwAIeqwndq10g4_I86zjwqoDTgKpPWJcDmKz_v8Ns8mcx2Kxa7YV8qxFFKdNtGy51s3rKQGcSnvpb7eMGptUGFmKG9oQoElJ_A-jJCoDCQBs-Wh6EOLBA-UPL9uB-n5hQKHrLzSVDey15Om2Pbp1n8d9aSM-NA1ydEsWPT1iedWYJCQ4r7YtOipt8HVOfsxnQgqC9JptcshGRXvpt1mW6JAJ-zUrBWUQYdnCrAwkrGp5g1uzoElVpeY_IKAc7bizUIeti-U5J5Dg74dSaUzok3SLNSL4FLovxE9IokP6y0CbBCJDaXZ0pWlrwBROEIP6Z9Ntzoi6cRtCpvFNzm778OwI7sD5FaaCY2ZOhO8qBUlB9vnewWkdJN_LebFUBBLaeS5WNX9uYISFjZQWkFp9nXmGDW4-HqTas0HNUZsH3gN-e0PCbg0MIVDcEX5ZqMTOq7PBhmY05xy6eLlGN2e0nZk8hlt_VoxYIDVd2gNxbu9dJozPhjchjwEow54GKWTgYBI3fhUgIEtnDrV_2s9XxbwfmCokDih4vmGRP_fU1jsxPgLnOfdq_2sdz1cPw665VF4_23dYfJGf5ddvbzsNILt3n0X5oAECHK6YEfxjd9LWojxuNH9Z6439R-q2t5nTrnEzTZ2bTCqc9hMHHyvs_S4L9PJDV-_TTBZWY0vcStDgUjgaQCn7rxoNvA5sFSRjDERIquOgK50RSE-krh96t8CbNycCV1uEylim8jzLjmv46yQT-EhRJ9-Xg86LdlCay9P4-tbr95LpOpJCRNgGgxDTCocpNTCkW3LE9YgASoJdXMtd2VzdC0yMIEQ.m3u8";
+const loader =
+    document.getElementById("loader");
+
+const errorBox =
+    document.getElementById("error");
+
+const centerPlay =
+    document.getElementById("centerPlay");
+
+const playBtn =
+    document.getElementById("playBtn");
+
+const muteBtn =
+    document.getElementById("muteBtn");
+
+const quality =
+    document.getElementById("quality");
+
+const fullscreenBtn =
+    document.getElementById("fullscreenBtn");
+
+
+/* ==================================
+   YOUR AUTHORIZED HLS MASTER URL
+================================== */
+
+const STREAM_URL =
+    "https://fa723fc1b171.aps31.playlist.live-video.net/v1/playlist/Cpge_ttV_j8ATffDoQNKO6D4K6C91HvlKXG7mrtizrzXQaF8GPw6NnCjXKDPy0dtLlpEDiHu744DOBcuwIfOA4m9mUzvwsGZoGumbIDiEGg04xS-_JeCP4YKIxgsXyH6V6v_X-zDnYM4R4Wk5fqyrT9BwyhKuQqPebpgw1hAAJaLr7uJzKBqQm_YM56RgGkT-8Ohye-GUvYkrXL2dHxTZxSRCpHqMrvhLe43LopQEwj3CNchIVH0M7DzEDTNhJEg7E4J0-7d63i_Y_tS6mvPuvykZV3Es-emvkc20syBTR8yC1bQgrIkvJILlSd6k5J4w3I-tOJ-ItN_PucZu5up9F1r1QTR5O8paRTlvlEgH8KfHIgIE15HnzIP7ExcNfMEjvjZBihahQo5EvalDOc4i674tzwaoRnYrkqWiYdjpVj7ZdjOJ1S3b0CG0jJAIlCrAM3mhH2oAoSdn98bqPZAq8wbbFqku-mMS_Oksl6webtrhwSzZp_ffC9UIJHCx5-Cf_CaivAQuxN7_4poqV3NUlgUrm0NtcOK0qRvqnW55gD591p2GJdNE3cJM6bfYa2Z3wRxdXHm23zqKSyv5DqmHO3Cefcx5RVV9aohf08Jyixvhkb38HrYVFXKaBqsc77jt0CypG-dbPDqwpL374qCYBcG-tzt0iUBYPG85rWF-jZHs0CssmuSwi9vk6YR7MkInCOItJ-XIEdi8iezcrO-bjO2fCnvOI-g7pMIVEL_QFYk1MwbkgUg9EO5z6zOc1GwrZ8z7s5N1aDzbRYrr8-1aUV1kmasWcqnvHnxJVzn6v1BMejiYf6C39NKDgQWaXGUkZhrAPe48Oe_dl5YZDamerXQEI7ZvCWKPJvODYz2olqLcka35FMMzJiMs51y0YdR2Tcm9gb-1jcKFOfMblRr-by9LLVoU_W6KnVslNCU0-9OoYmeq0ZzKRYnjTZ8rYlJT3eDnd0eFLbjDcOBdV9lmukNa3YAaBvhWBC5fsGIDj8hB0lg4mw2_vRs0OQGRV-xYHWwytpU41i3UjI0vr0R5nAAD1RbQVcpavMqTSiqQUpfPokdYEToJ7M6ftGQxzw80YzcW0YjVvV3ZXNk_huEtTcPnWQKbt_RoSLpcfotcSEULa1SRS0PB3NWmj6UQuD24y-MfBZGAIYpFtP2QxyVYAZApAvIlyVqoQjxXCTgcTHeTNjefFWixsTOPXiGMQsyn3xYBKbGgRAz6HfD5peZ8aLF1PloPcOct-h9gWN-V07Eiiy_pqIyjXYyiYL9hituvPSetsl3pw5DV9EzPhRd8saRM83D-7HpolD2vb9-uJEIJvNH7yStMXo-iav_OtrCHc58VTj-r7RPTkg09-UUFjsfgFPK-P00IO68tooHBQiUofC1OlWJoEsbd3c4eCymz56YD_cLlOYtcpQgaiDv_L08TIvb8mCxkmeL8JSA71buMgP8hgXPrmJlyuPXSvQi-6YnwM2c_z7YHodNLmB3V8n1wu9-OWbYEKHg3CFXXMEJ8nU3oDmmWpMjQCvLdQCmd_h-xYAPN-xzDoUqj7nYf94YGwF4pkc9_8G1x201mR9Z1UZZKKwaBKJkasfI109ehAHgloPFh6aIK_LSXgm_u1-2rckmPOhDWeqx3JNjrfjWAEcpVnNMPbx2MduCfkly9fw1_Vbv1X_hBVAnUltRAV49YdZ7lOTl1eSQABLOTn9ZjB4SfT79y0Qrq2wbR8PgueBdzBAYwKe2Ti6cyhpHlzzjJtLTBkSLuru-Y1sYp_80n9oF0GsybVTR1opP8gdggLTgxemVaw9FEFZjYK39ESnrp3vwLEo_mioT7DQmX2oJquYfDLf_n4FZaGy2rM-YW56b8YQlhbf_CSx7vSInJj8vlmmq5eABnOCX2oNM6DVrI-UAYTs-UkGU_oBUNfTa6qgsuxtIoDvbF_TtIlmsLaDUzz4AE1NJIbKjpChmNu0soqTx53AEcPoc0L2qyULctLPnLO_RqzsyMeYAR2oW3B2ed0UQ9c2JWOMMIYejoBlVO-PXL8BnDcPY4gUxHl124Ulv6B_4BCZLAeHy3d0-yZAKWrjSaxjW2Cm-WCejG5oFWPDGuR9oIyhDzPyyvi_xOeIU-S_aRE7aVkLe9ke3NuJ8yBQgzXdRcWoHJbCzBGqgGOXsebTAxLKmZ4DBGqQXXE1ylshu8uvjTMohdqffkGrE3qKU4CALPbilxvmxOTptI7z91S-perk3skAlYPd5p02bHHHNHXedJwRIlnvEh0xB_sOcoshcB0x5DN6hRgk1pjAW5naN1DDj79RmtawtO9jW4ZOqRpXNBcN9F8jNhDsKQiwnMoxbzsaZFmN-4QVj2IpxajsxEUTynTRZGAjKDVL9OrlFnDwPUZ6yY5dvZ4bAJJluWLtndD_9ii0SpqEpU4XMrWC6BHESkb1o6uJaGE0-WgudicKG-Aly1ssDP5GXaecvIlE_xF_GkiHnDCnw9a2ujziyfEipa9Wtn0CWQd4mJFULsVTeZLtqr9elxmLaugROqHE_GBFX4GQ9M_B26bUeNRIWiRSnzRZw1wXtfMS2OsfXR5LMPMuUrwf_OlK7aN4yK6Iq4vorCBCT5CGd_zsM9rbCpdggCFpfyO6qSf3Yj0XRt0uqn-6rsVo6BmAHYsoHJ4JfKwHCsE2uJVk0hGFqakUWcy7H8Io2jxRR9TO0qzHWZ5q3zvxmRENLxdixecTnQNXk6v0nAMo1aAIWjRhgjR0UzgQWsUk8Z7EtTsEi3vewWK4HoYsd1VjX35v4kINiu3tiMLC-OBMnRcQD7rCEp9k_LhuGuinYicxl4I0cA0O0AauVJ0jQ4qjsJ3nyTQP1MJOrj01mtX8B8Qrtop4z-NOqMYiT1lrK6Uw4DbEUA0yBrOx2eKTa4kuNVpRV6b7PCnydxRb-qu8-VTU3Xi2P87uaeLuRR_YVUQ_YyaJYuHtOW89HSdMefBUK_pAv17p_COG4AD7imXB3U1xJ2y736Hh-MewSbPoG7qLT5nEBiF4Dow4_uw_mAgkagW5_nsfJBFAxm47DO9QWTJmtEPfjJP5n_XyPwpxhOAzfEE34Qyr9cj2IL2jyz_qzswZg0kbSlk_O6y7Kj7Spd05efRhrIRHupOfJZQurOFL0VMko5-RWlY9UqgjwcWzYIXwPg8ESrhhzVYJuPzG1U64eH3DYF-kg0KVQeRSrLwN92yc_MgeS62hULA6wEz9642Go5lbUfIZxxASYYRrLN1EHAhh_6rEoUDeRRrp77lIziFj9IVFDxzzsNnqKXcDNQCDzviZeIjyG1b_Y0RGLtuq0BFosxRa8ilPC4uHRDWrmYRvJ3x4v7iyj4YOr63XGRSKWkfb7ZeQ0bjNOEBOjBp4Ok-drX2pLg8xX-jZWN84mX_1AsKBM2aCGRRzoGQVS1nM9avCxEno4NxVh8JBSq9rLrcI0VX_jQPoUjn_m5Plzeoob0USDF_BzbUrdKZ0wcKtmEefZCu7LS5O2MumCqelMi9q56SlHRZtt7EklpIILuZ8evZgY-6a3n_OkyRv2LvKnZTxug5IUqonErDgsjNW8gjaWhK3F51hFrNYvK8pTiZtPvmGLvLm4VMcasAZLaz5ZP7x5aEIBpHNCEFnVyzSywEUOtVQO7J4dImKNzHSyxyEWl8-fuq18mX6agNrom08ezh23s3a8G4o4IB4QSZ0sX63ZVMQ-AdSJG58AW1PKk9UTweHP5Lhj1l9mMnVIMDVgWe-hyuacf1txJmfqC5_tCrEwCEn2VuVLhRBZyAqe94C4Q-VHJmEFmmkOB_yqVrsf3KNTlftF5ceIikUMytOXbrxBynmUNcVkSkYt8B4w46rW3949BiCzh4spY96pEOntTFEr1NXwohY29a7RzgMUfI06mR0utPxVbqzMhRC1ysQ_7wOYXurDI5aN6Is55mDoHkjeEUlHoZFHT1BAfr7ZO15RSbxK0T7dLacteMwbNC0psO6NeMCTDEAGS5vN_i2Z8i6RDMsk3P9yZ_7o-O4LXO54XYQ-cygGlvFM74nezgJGVpPgg7FWJ45pkhYoe7iDMadOyzJPMfzcbmc29Eg7B6k6WGQBG-ZY16s4IJ7YLSbtM93Is1AEDtvHxGHgQ0oxvZh_CIBcGhT4z3spMEi9CLuz_Vj1LTmOzNjQmeD0qXRzKoE0V6AZekubzffWZdAv8qVqe3j1ylk45anAugCsrMbHJVt-eTAzO-diNFxIerd0Al3Ho7MSXVpczrGjuSeobhTYr8ub3w9BBrZLYCsfbCDho2O1kqlosH1k_P7NsJyqsRbMWYrcHyX31KKtKhya8P0zdPci0ovRACL2RUNaV0KwaHYapL3w5DRmwbp4lOqzog9QJQzeLT1xwhrprfLiVEY95couDEIhtV-y7xwWNTAOwQg6ecwthcZYMrmKksGmiIWZM68BNC_JX75C3LY_Gx5USpMb4_yWKeemxR8exqs7XLuAJhpqq007WXctNpiNSwRFtkwI2WCqHXsGocM-_YgG1F6dszSNtofme-JxCwlVadZ9bFLX6q3iVjLOK1YnOgQRuqQxA_7_8OCfjNZGuudNOXXBfcHn0dFfy_TkcBNv1Mqo9Fw-4dZSF19n1TTCVvKgZnZAIrk3WSz9uZ2zz9B-GM9lG53fch9H2ZXgQE0Cb-h2B9Zj_3FvtLUrQ2VJPWkPa6qcqquEyxJ1fqbqNj9e6ERsotxnzFgdDkVN5hoUwOxCp-oyCH4-H6nNhcvZtPhctArc3NbqtFIaZcjKyXM9IENx7z4EUR6bVkd7-ZoVx4giu0Y3VUfleMzmSqpSlLLyV95QJGdZvEx8IDTgqPCh9EueQYFfAdKQIh3eCMFypA-ovr50nhI2gKJ95T26JlEPWeCAk0-H3oUv4WAiRaVENBN7zELs-TH6FzQt8K3MvsHFP10RUKA1Pu3guDHEByEXdfvBCsffHEPgEzLLrhozlQT9rZrTd_NCG-hapZXGDnjbhtjFmngYE4pwApT-GxUhe7o3Ys2EImT3p50SXVlgXoqsC1IyKkhfCDR1v5qxU-BBDPg_A2oisk8iqjtibo4gT_QEMaHkXrBNxsQRaL2SRAaYpAe_com5h47vGsQz_8xNsG2lwmuo-NviNWXrbLi1HmZQ4DIWg-o_KGkKgi8-vI565WDYGgyh6RJuydJHPAjs22YgASoJdXMtd2VzdC0yMIEQ.m3u8";
+
 
 let hls = null;
 
+let hideTimer = null;
 
-/* -----------------------------
-   HLS SETUP
------------------------------ */
 
-if (Hls.isSupported()) {
+/* ==================================
+   CONTROLS AUTO HIDE
+================================== */
 
-    hls = new Hls({
-        enableWorker: true,
-        lowLatencyMode: true
-    });
+function showControls() {
 
-    hls.loadSource(STREAM_URL);
-    hls.attachMedia(video);
+    player.classList.add(
+        "controls-visible"
+    );
 
-    hls.on(Hls.Events.MANIFEST_PARSED, function () {
+    clearTimeout(hideTimer);
 
-        loader.classList.remove("show");
+    hideTimer = setTimeout(() => {
 
-        quality.innerHTML =
-            '<option value="-1">Auto</option>';
+        if (!video.paused) {
 
-        hls.levels.forEach((level, index) => {
+            player.classList.remove(
+                "controls-visible"
+            );
 
-            const option = document.createElement("option");
+        }
 
-            option.value = index;
+    }, 5000);
 
-            const height = level.height || "?";
+}
 
-            option.textContent = height + "p";
 
-            quality.appendChild(option);
+function hideControls() {
+
+    player.classList.remove(
+        "controls-visible"
+    );
+
+    clearTimeout(hideTimer);
+
+}
+
+
+/* ==================================
+   CLICK / TAP VIDEO
+================================== */
+
+player.addEventListener(
+    "click",
+    function(e) {
+
+        if (
+            e.target === playBtn ||
+            e.target === muteBtn ||
+            e.target === quality ||
+            e.target === fullscreenBtn ||
+            e.target === centerPlay
+        ) {
+            return;
+        }
+
+        if (
+            player.classList.contains(
+                "controls-visible"
+            )
+        ) {
+
+            hideControls();
+
+        } else {
+
+            showControls();
+
+        }
+
+    }
+);
+
+
+/* ==================================
+   HLS
+================================== */
+
+function startStream() {
+
+    errorBox.classList.remove("show");
+
+    loader.classList.add("show");
+
+
+    if (Hls.isSupported()) {
+
+        if (hls) {
+
+            hls.destroy();
+
+        }
+
+
+        hls = new Hls({
+
+            enableWorker: true,
+
+            lowLatencyMode: true,
+
+            backBufferLength: 30
 
         });
 
-    });
 
-    hls.on(Hls.Events.ERROR, function(event, data) {
+        hls.loadSource(STREAM_URL);
 
-        if (data.fatal) {
+        hls.attachMedia(video);
 
-            statusText.textContent = "RECONNECTING...";
 
-            setTimeout(() => {
+        /* --------------------------
+           STREAM READY
+        -------------------------- */
 
-                hls.destroy();
+        hls.on(
+            Hls.Events.MANIFEST_PARSED,
+            function() {
 
-                hls = new Hls({
-                    enableWorker: true,
-                    lowLatencyMode: true
+                loader.classList.remove(
+                    "show"
+                );
+
+                buildQualityMenu();
+
+                video.play().catch(() => {
+
+                    centerPlay.classList.add(
+                        "show"
+                    );
+
+                    showControls();
+
                 });
 
-                hls.loadSource(STREAM_URL);
-                hls.attachMedia(video);
+            }
+        );
 
-            }, 3000);
+
+        /* --------------------------
+           ERRORS
+        -------------------------- */
+
+        hls.on(
+            Hls.Events.ERROR,
+            function(event, data) {
+
+                if (!data.fatal) {
+                    return;
+                }
+
+
+                loader.classList.remove(
+                    "show"
+                );
+
+                errorBox.classList.add(
+                    "show"
+                );
+
+
+                setTimeout(() => {
+
+                    errorBox.classList.remove(
+                        "show"
+                    );
+
+                    startStream();
+
+                }, 3000);
+
+            }
+        );
+
+    }
+
+    else if (
+        video.canPlayType(
+            "application/vnd.apple.mpegurl"
+        )
+    ) {
+
+        video.src = STREAM_URL;
+
+        video.addEventListener(
+            "loadedmetadata",
+            function() {
+
+                loader.classList.remove(
+                    "show"
+                );
+
+                video.play().catch(() => {
+
+                    centerPlay.classList.add(
+                        "show"
+                    );
+
+                    showControls();
+
+                });
+
+            },
+            { once: true }
+        );
+
+    }
+
+}
+
+
+/* ==================================
+   QUALITY MENU
+================================== */
+
+function buildQualityMenu() {
+
+    quality.innerHTML =
+        '<option value="-1">Auto</option>';
+
+
+    if (!hls || !hls.levels.length) {
+        return;
+    }
+
+
+    const levels = [...hls.levels];
+
+
+    levels.forEach(
+        (level, index) => {
+
+            const option =
+                document.createElement(
+                    "option"
+                );
+
+            option.value = index;
+
+            option.textContent =
+                level.height
+                ? level.height + "p"
+                : "Quality " + (index + 1);
+
+            quality.appendChild(
+                option
+            );
+
+        }
+    );
+
+}
+
+
+/* ==================================
+   QUALITY CHANGE
+================================== */
+
+quality.addEventListener(
+    "change",
+    function() {
+
+        if (!hls) {
+            return;
         }
 
-    });
+        hls.currentLevel =
+            parseInt(
+                this.value
+            );
 
-}
+        showControls();
 
-
-/* -----------------------------
-   NATIVE HLS
------------------------------ */
-
-else if (
-    video.canPlayType(
-        "application/vnd.apple.mpegurl"
-    )
-) {
-
-    video.src = STREAM_URL;
-
-}
+    }
+);
 
 
-/* -----------------------------
+/* ==================================
    PLAY / PAUSE
------------------------------ */
+================================== */
 
-playBtn.onclick = function() {
+function togglePlay() {
 
     if (video.paused) {
 
         video.play();
 
-        playBtn.textContent = "⏸";
-
     } else {
 
         video.pause();
 
+    }
+
+}
+
+
+playBtn.addEventListener(
+    "click",
+    function(e) {
+
+        e.stopPropagation();
+
+        togglePlay();
+
+        showControls();
+
+    }
+);
+
+
+centerPlay.addEventListener(
+    "click",
+    function(e) {
+
+        e.stopPropagation();
+
+        togglePlay();
+
+    }
+);
+
+
+video.addEventListener(
+    "play",
+    function() {
+
+        playBtn.textContent = "⏸";
+
+        centerPlay.classList.remove(
+            "show"
+        );
+
+        showControls();
+
+    }
+);
+
+
+video.addEventListener(
+    "pause",
+    function() {
+
         playBtn.textContent = "▶";
 
+        centerPlay.classList.add(
+            "show"
+        );
+
+        showControls();
+
     }
+);
 
-};
 
-
-/* -----------------------------
+/* ==================================
    MUTE
------------------------------ */
+================================== */
 
-muteBtn.onclick = function() {
+muteBtn.addEventListener(
+    "click",
+    function(e) {
 
-    video.muted = !video.muted;
+        e.stopPropagation();
 
-    muteBtn.textContent =
-        video.muted ? "🔇" : "🔊";
+        video.muted =
+            !video.muted;
 
-};
+        muteBtn.textContent =
+            video.muted
+                ? "🔇"
+                : "🔊";
 
-
-/* -----------------------------
-   QUALITY
------------------------------ */
-
-quality.onchange = function() {
-
-    if (!hls) return;
-
-    const selected = parseInt(
-        quality.value
-    );
-
-    hls.currentLevel = selected;
-
-};
-
-
-/* -----------------------------
-   FULLSCREEN
------------------------------ */
-
-fullscreenBtn.onclick = function() {
-
-    if (!document.fullscreenElement) {
-
-        player.requestFullscreen();
-
-    } else {
-
-        document.exitFullscreen();
+        showControls();
 
     }
+);
 
-};
+
+/* ==================================
+   FULLSCREEN
+================================== */
+
+fullscreenBtn.addEventListener(
+    "click",
+    function(e) {
+
+        e.stopPropagation();
 
 
-/* -----------------------------
+        if (!document.fullscreenElement) {
+
+            if (
+                player.requestFullscreen
+            ) {
+
+                player.requestFullscreen();
+
+            }
+
+        } else {
+
+            document.exitFullscreen();
+
+        }
+
+        showControls();
+
+    }
+);
+
+
+/* ==================================
    LOADING
------------------------------ */
+================================== */
 
-video.addEventListener("waiting", function() {
+video.addEventListener(
+    "waiting",
+    function() {
 
-    loader.classList.add("show");
+        loader.classList.add(
+            "show"
+        );
 
-});
-
-video.addEventListener("playing", function() {
-
-    loader.classList.remove("show");
-
-    statusText.textContent = "LIVE";
-
-    playBtn.textContent = "⏸";
-
-});
+    }
+);
 
 
-/* -----------------------------
+video.addEventListener(
+    "playing",
+    function() {
+
+        loader.classList.remove(
+            "show"
+        );
+
+        errorBox.classList.remove(
+            "show"
+        );
+
+        centerPlay.classList.remove(
+            "show"
+        );
+
+    }
+);
+
+
+/* ==================================
+   USER MOVEMENT
+================================== */
+
+player.addEventListener(
+    "mousemove",
+    function() {
+
+        showControls();
+
+    }
+);
+
+
+/* ==================================
+   TOUCH
+================================== */
+
+player.addEventListener(
+    "touchstart",
+    function() {
+
+        showControls();
+
+    },
+    { passive: true }
+);
+
+
+/* ==================================
    START
------------------------------ */
+================================== */
 
-video.addEventListener("loadedmetadata", function() {
-
-    video.play().catch(() => {});
-
-});
+startStream();
 
 </script>
 
