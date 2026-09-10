@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
 
 <title>Live Player</title>
 
@@ -20,7 +20,7 @@ html,body{
     height:100%;
     background:#000;
     overflow:hidden;
-    font-family:Arial,Helvetica,sans-serif;
+    font-family:Arial,sans-serif;
 }
 
 .player{
@@ -28,95 +28,72 @@ html,body{
     width:100%;
     height:100%;
     background:#000;
-    overflow:hidden;
-    user-select:none;
 }
 
 video{
-    position:absolute;
-    inset:0;
     width:100%;
     height:100%;
     object-fit:contain;
     background:#000;
 }
 
-/* DARK GRADIENTS */
+/* Loading */
 
-.topShade{
+.loader{
     position:absolute;
-    top:0;
-    left:0;
-    right:0;
-    height:90px;
-    background:linear-gradient(#0009,transparent);
-    opacity:0;
-    transition:.25s;
-    pointer-events:none;
+    top:50%;
+    left:50%;
+    width:42px;
+    height:42px;
+    margin:-21px;
+    border:4px solid #ffffff35;
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
 }
 
-.bottomShade{
-    position:absolute;
-    left:0;
-    right:0;
-    bottom:0;
-    height:125px;
-    background:linear-gradient(transparent,#000d);
-    opacity:0;
-    transition:.25s;
-    pointer-events:none;
+@keyframes spin{
+    to{transform:rotate(360deg)}
 }
+
+/* Controls */
 
 .controls{
     position:absolute;
     left:0;
     right:0;
     bottom:0;
-    padding:0 13px 10px;
+
+    padding:45px 14px 12px;
+
+    background:linear-gradient(
+        transparent,
+        #000e
+    );
+
     opacity:0;
-    transform:translateY(8px);
     transition:.25s;
+
     pointer-events:none;
 }
 
-.visible .controls{
+.player.show-controls .controls{
     opacity:1;
-    transform:none;
     pointer-events:auto;
 }
 
-.visible .topShade,
-.visible .bottomShade{
-    opacity:1;
-}
-
-/* PROGRESS */
+/* Progress */
 
 .progress{
-    position:relative;
-    width:100%;
     height:4px;
     background:#ffffff55;
+    border-radius:5px;
     cursor:pointer;
-    margin-bottom:10px;
-    border-radius:5px;
+    margin-bottom:8px;
+    position:relative;
 }
 
-.progress:hover{
-    height:6px;
-}
-
-.buffer{
-    position:absolute;
-    left:0;
-    top:0;
-    height:100%;
-    width:0;
-    background:#ffffff66;
-    border-radius:5px;
-}
-
-.progressFill{
+.progress-fill{
     position:absolute;
     left:0;
     top:0;
@@ -126,23 +103,7 @@ video{
     border-radius:5px;
 }
 
-.progressDot{
-    position:absolute;
-    width:11px;
-    height:11px;
-    border-radius:50%;
-    background:#ff0033;
-    top:50%;
-    left:0;
-    transform:translate(-50%,-50%);
-    opacity:0;
-}
-
-.progress:hover .progressDot{
-    opacity:1;
-}
-
-/* CONTROL ROW */
+/* Row */
 
 .row{
     display:flex;
@@ -151,17 +112,13 @@ video{
 }
 
 button{
+    width:40px;
+    height:40px;
     border:0;
     background:transparent;
     color:#fff;
-    width:39px;
-    height:39px;
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    border-radius:6px;
-    cursor:pointer;
     font-size:19px;
+    border-radius:7px;
 }
 
 button:active{
@@ -172,166 +129,61 @@ button:active{
     flex:1;
 }
 
-/* VOLUME */
+/* Quality */
 
-.volumeBox{
-    display:flex;
-    align-items:center;
-}
-
-.volumeRange{
-    width:0;
-    opacity:0;
-    transition:.2s;
-    accent-color:#fff;
-}
-
-.volumeBox:hover .volumeRange{
-    width:75px;
-    opacity:1;
-}
-
-/* LIVE */
-
-.live{
-    display:flex;
-    align-items:center;
-    gap:6px;
-    color:#fff;
-    font-size:12px;
-    font-weight:bold;
-    margin-right:5px;
-}
-
-.dot{
-    width:7px;
-    height:7px;
-    background:#ff0033;
-    border-radius:50%;
-}
-
-/* SETTINGS */
-
-.settings{
-    position:absolute;
-    right:50px;
-    bottom:58px;
-    width:190px;
-    background:#181818f5;
-    border-radius:10px;
-    padding:7px;
-    display:none;
-    color:#fff;
-    box-shadow:0 5px 25px #000;
-}
-
-.settings.show{
-    display:block;
-}
-
-.menuTitle{
-    padding:10px;
-    font-size:13px;
-    color:#aaa;
-}
-
-.menuItem{
-    padding:11px;
-    border-radius:6px;
-    cursor:pointer;
-    font-size:14px;
-}
-
-.menuItem:hover{
-    background:#ffffff15;
-}
-
-/* CENTER */
-
-.centerPlay{
-    position:absolute;
-    left:50%;
-    top:50%;
-    transform:translate(-50%,-50%);
-    width:72px;
-    height:72px;
-    border-radius:50%;
-    border:0;
-    background:#ffffffdd;
-    color:#111;
-    font-size:28px;
-    display:none;
-    align-items:center;
-    justify-content:center;
-    box-shadow:0 3px 20px #0008;
-}
-
-.centerPlay.show{
-    display:flex;
-}
-
-/* LOADER */
-
-.loader{
-    position:absolute;
-    left:50%;
-    top:50%;
-    width:42px;
-    height:42px;
-    margin:-21px;
-    border:4px solid #ffffff35;
-    border-top-color:#fff;
-    border-radius:50%;
-    animation:spin .7s linear infinite;
-    display:none;
-}
-
-.loader.show{
-    display:block;
-}
-
-@keyframes spin{
-    to{transform:rotate(360deg)}
-}
-
-/* QUALITY */
-
-.quality{
-    width:100%;
-    padding:10px;
-    background:#222;
+select{
+    height:38px;
+    background:#181818;
     color:#fff;
     border:0;
-    border-radius:6px;
+    border-radius:7px;
+    padding:0 9px;
     outline:none;
 }
 
-/* MOBILE */
+/* Center play */
+
+.center-play{
+    position:absolute;
+    top:50%;
+    left:50%;
+    transform:translate(-50%,-50%);
+
+    width:70px;
+    height:70px;
+
+    border-radius:50%;
+    border:0;
+
+    background:#fff;
+    color:#111;
+
+    font-size:28px;
+
+    display:none;
+}
+
+.center-play.show{
+    display:block;
+}
+
+/* Mobile */
 
 @media(max-width:600px){
 
     .controls{
-        padding:0 7px 7px;
+        padding:35px 7px 7px;
     }
 
     button{
         width:35px;
         height:35px;
-        font-size:17px;
+        font-size:16px;
     }
 
-    .live{
-        font-size:10px;
-    }
-
-    .settings{
-        right:40px;
-        bottom:52px;
-        width:170px;
-    }
-
-    .volumeRange{
-        display:none;
+    select{
+        height:35px;
+        font-size:12px;
     }
 }
 </style>
@@ -341,89 +193,55 @@ button:active{
 
 <div class="player" id="player">
 
-<video id="video" playsinline></video>
+    <video
+        id="video"
+        playsinline
+        preload="auto">
+    </video>
 
-<div class="topShade"></div>
-<div class="bottomShade"></div>
+    <div class="loader" id="loader"></div>
 
-<div class="loader" id="loader"></div>
+    <button
+        class="center-play"
+        id="centerPlay">
+        ▶
+    </button>
 
-<button class="centerPlay" id="centerPlay">▶</button>
+    <div class="controls">
 
-<div class="settings" id="settings">
+        <div
+            class="progress"
+            id="progress">
 
-    <div class="menuTitle">Quality</div>
-
-    <select class="quality" id="quality">
-        <option value="-1">Auto</option>
-    </select>
-
-    <div class="menuTitle">Playback speed</div>
-
-    <div class="menuItem" data-speed="1">Normal</div>
-    <div class="menuItem" data-speed="1.25">1.25×</div>
-    <div class="menuItem" data-speed="1.5">1.5×</div>
-    <div class="menuItem" data-speed="2">2×</div>
-
-</div>
-
-<div class="controls">
-
-    <div class="progress" id="progress">
-
-        <div class="buffer" id="buffer"></div>
-
-        <div class="progressFill" id="progressFill"></div>
-
-        <div class="progressDot" id="progressDot"></div>
-
-    </div>
-
-    <div class="row">
-
-        <button id="play">▶</button>
-
-        <div class="volumeBox">
-
-            <button id="mute">🔊</button>
-
-            <input
-                class="volumeRange"
-                id="volume"
-                type="range"
-                min="0"
-                max="1"
-                step=".01"
-                value="1">
+            <div
+                class="progress-fill"
+                id="progressFill">
+            </div>
 
         </div>
 
-        <span class="spacer"></span>
+        <div class="row">
 
-        <div class="live">
-            <span class="dot"></span>
-            LIVE
+            <button id="playBtn">▶</button>
+
+            <button id="muteBtn">🔊</button>
+
+            <select id="quality">
+                <option value="-1">Auto</option>
+            </select>
+
+            <div class="spacer"></div>
+
+            <button id="fullscreenBtn">⛶</button>
+
         </div>
-
-        <button id="settingsBtn">⚙</button>
-
-        <button id="fullscreen">⛶</button>
 
     </div>
 
 </div>
 
-</div>
 
 <script>
-
-/* =========================================
-   PUT YOUR AUTHORIZED MASTER HLS URL HERE
-========================================= */
-
-const STREAM_URL =
-"https://propinquitypostulate.website/pl/H4sIAAAAAAAAAwXBx26DMAAA0F8ymBEq5RBaTOvIdlleN4YTCmaISBHw9X2vM6GBXXhpwSNqYXhxTWuA.wjc0IuaALQfGuwnE8.dT5HSQ45ruw40zcsS6aVJX5CVOSXJ6uWTbzsZc1NRv7D4TmRXdBB7JMFnnY4..4oPI3tZV5g0Z54VsFe5_HmzRJ0dj7G2653M2cEkcbmDRv29YjH3nzWyhJa3zVT7IYS2bboeDD1dKvXG_6KZTKvKwB4o8fLIEYEG9mU7OX0looTKxdf2tulxgdXApU6RFRPC9dA7ClhGuU1KiN6_2fX6D4Two9UJAQAA/0f23fcf79be0e63ab6d07c73d2dcf717/index.m3u8?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJteS1hdXRoIiwiaWF0IjoxNzg5MDUzMDA2LCJuYmYiOjE3ODkwNTMwMDYsImV4cCI6MTc4OTA2NzQwNiwiaXBfY2lkciI6IjI0MDk6NDBjMTozMDE0OjQ2Mjo6LzY0In0.Ck8AtN3YnLydoIGp3wAWZvR7yr6Z9NwIpfrxiiutYA4";
-
 
 const player =
 document.getElementById("player");
@@ -434,29 +252,20 @@ document.getElementById("video");
 const loader =
 document.getElementById("loader");
 
-const centerPlay =
-document.getElementById("centerPlay");
+const playBtn =
+document.getElementById("playBtn");
 
-const play =
-document.getElementById("play");
-
-const mute =
-document.getElementById("mute");
-
-const volume =
-document.getElementById("volume");
-
-const fullscreen =
-document.getElementById("fullscreen");
-
-const settingsBtn =
-document.getElementById("settingsBtn");
-
-const settings =
-document.getElementById("settings");
+const muteBtn =
+document.getElementById("muteBtn");
 
 const quality =
 document.getElementById("quality");
+
+const fullscreenBtn =
+document.getElementById("fullscreenBtn");
+
+const centerPlay =
+document.getElementById("centerPlay");
 
 const progress =
 document.getElementById("progress");
@@ -464,32 +273,40 @@ document.getElementById("progress");
 const progressFill =
 document.getElementById("progressFill");
 
-const progressDot =
-document.getElementById("progressDot");
 
-const buffer =
-document.getElementById("buffer");
+/*
+=========================================
+AUTHORIZED HLS URL
+=========================================
+*/
+
+const STREAM_URL = "https://propinquitypostulate.website/pl/H4sIAAAAAAAAAwXBx26DMAAA0F8ymBEq5RBaTOvIdlleN4YTCmaISBHw9X2vM6GBXXhpwSNqYXhxTWuA.wjc0IuaALQfGuwnE8.dT5HSQ45ruw40zcsS6aVJX5CVOSXJ6uWTbzsZc1NRv7D4TmRXdBB7JMFnnY4..4oPI3tZV5g0Z54VsFe5_HmzRJ0dj7G2653M2cEkcbmDRv29YjH3nzWyhJa3zVT7IYS2bboeDD1dKvXG_6KZTKvKwB4o8fLIEYEG9mU7OX0looTKxdf2tulxgdXApU6RFRPC9dA7ClhGuU1KiN6_2fX6D4Two9UJAQAA/0f23fcf79be0e63ab6d07c73d2dcf717/index.m3u8?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJteS1hdXRoIiwiaWF0IjoxNzg5MDUzMDA2LCJuYmYiOjE3ODkwNTMwMDYsImV4cCI6MTc4OTA2NzQwNiwiaXBfY2lkciI6IjI0MDk6NDBjMTozMDE0OjQ2Mjo6LzY0In0.Ck8AtN3YnLydoIGp3wAWZvR7yr6Z9NwIpfrxiiutYA4";
 
 
-let hls=null;
-let hideTimer=null;
+let hls = null;
+let hideTimer = null;
 
 
-/* =========================================
-   SHOW / HIDE CONTROLS
-========================================= */
+/*
+=========================================
+CONTROLS
+=========================================
+*/
 
 function showControls(){
 
-    player.classList.add("visible");
+    player.classList.add("show-controls");
 
     clearTimeout(hideTimer);
 
-    hideTimer=setTimeout(()=>{
+    hideTimer = setTimeout(() => {
 
         if(!video.paused){
-            player.classList.remove("visible");
-            settings.classList.remove("show");
+
+            player.classList.remove(
+                "show-controls"
+            );
+
         }
 
     },5000);
@@ -498,29 +315,85 @@ function showControls(){
 
 function hideControls(){
 
-    player.classList.remove("visible");
-
-    settings.classList.remove("show");
+    player.classList.remove(
+        "show-controls"
+    );
 
     clearTimeout(hideTimer);
 }
 
 
-/* =========================================
-   HLS
-========================================= */
+/*
+=========================================
+QUALITY
+=========================================
+*/
 
-function start(){
+function makeQualityMenu(){
 
-    loader.classList.add("show");
+    quality.innerHTML =
+        '<option value="-1">Auto</option>';
+
+    if(!hls || !hls.levels.length){
+        return;
+    }
+
+    hls.levels.forEach(
+        (level,index) => {
+
+            const option =
+                document.createElement("option");
+
+            option.value = index;
+
+            option.textContent =
+                level.height
+                ? level.height + "p"
+                : "Quality " + (index+1);
+
+            quality.appendChild(option);
+
+        }
+    );
+}
+
+
+quality.addEventListener(
+    "change",
+    function(){
+
+        if(!hls) return;
+
+        hls.currentLevel =
+            Number(this.value);
+
+        showControls();
+
+    }
+);
+
+
+/*
+=========================================
+START HLS
+=========================================
+*/
+
+function startPlayer(){
+
+    loader.style.display="block";
 
 
     if(Hls.isSupported()){
 
-        hls=new Hls({
+        hls = new Hls({
+
             enableWorker:true,
+
             lowLatencyMode:true,
+
             backBufferLength:30
+
         });
 
 
@@ -531,13 +404,13 @@ function start(){
 
         hls.on(
             Hls.Events.MANIFEST_PARSED,
-            ()=>{
+            function(){
 
-                loader.classList.remove("show");
+                loader.style.display="none";
 
-                createQualityList();
+                makeQualityMenu();
 
-                video.play().catch(()=>{
+                video.play().catch(() => {
 
                     centerPlay.classList.add("show");
 
@@ -551,19 +424,19 @@ function start(){
 
         hls.on(
             Hls.Events.ERROR,
-            (event,data)=>{
+            function(event,data){
 
                 if(data.fatal){
 
-                    loader.classList.add("show");
+                    loader.style.display="block";
 
-                    setTimeout(()=>{
+                    setTimeout(() => {
 
                         if(hls){
                             hls.destroy();
                         }
 
-                        start();
+                        startPlayer();
 
                     },3000);
 
@@ -580,14 +453,15 @@ function start(){
         )
     ){
 
-        video.src=STREAM_URL;
+        video.src = STREAM_URL;
 
         video.addEventListener(
             "loadedmetadata",
-            ()=>{
-                loader.classList.remove("show");
+            function(){
 
-                video.play().catch(()=>{
+                loader.style.display="none";
+
+                video.play().catch(() => {
 
                     centerPlay.classList.add("show");
 
@@ -600,68 +474,15 @@ function start(){
         );
 
     }
+
 }
 
 
-/* =========================================
-   QUALITY LIST
-========================================= */
-
-function createQualityList(){
-
-    quality.innerHTML =
-        '<option value="-1">Auto</option>';
-
-
-    if(!hls || !hls.levels.length){
-        return;
-    }
-
-
-    hls.levels.forEach(
-        (level,index)=>{
-
-            const option =
-                document.createElement("option");
-
-            option.value=index;
-
-            option.textContent =
-                level.height
-                ? level.height+"p"
-                : "Quality "+(index+1);
-
-            quality.appendChild(option);
-
-        }
-    );
-}
-
-
-/* =========================================
-   QUALITY CHANGE
-========================================= */
-
-quality.addEventListener(
-    "change",
-    e=>{
-
-        if(hls){
-
-            hls.currentLevel =
-                Number(e.target.value);
-
-        }
-
-        showControls();
-
-    }
-);
-
-
-/* =========================================
-   PLAY
-========================================= */
+/*
+=========================================
+PLAY / PAUSE
+=========================================
+*/
 
 function togglePlay(){
 
@@ -674,10 +495,11 @@ function togglePlay(){
         video.pause();
 
     }
+
 }
 
 
-play.onclick=e=>{
+playBtn.onclick = function(e){
 
     e.stopPropagation();
 
@@ -688,7 +510,7 @@ play.onclick=e=>{
 };
 
 
-centerPlay.onclick=e=>{
+centerPlay.onclick = function(e){
 
     e.stopPropagation();
 
@@ -699,9 +521,9 @@ centerPlay.onclick=e=>{
 
 video.addEventListener(
     "play",
-    ()=>{
+    function(){
 
-        play.textContent="⏸";
+        playBtn.textContent="⏸";
 
         centerPlay.classList.remove("show");
 
@@ -713,9 +535,9 @@ video.addEventListener(
 
 video.addEventListener(
     "pause",
-    ()=>{
+    function(){
 
-        play.textContent="▶";
+        playBtn.textContent="▶";
 
         centerPlay.classList.add("show");
 
@@ -725,17 +547,19 @@ video.addEventListener(
 );
 
 
-/* =========================================
-   MUTE
-========================================= */
+/*
+=========================================
+MUTE
+=========================================
+*/
 
-mute.onclick=e=>{
+muteBtn.onclick = function(e){
 
     e.stopPropagation();
 
-    video.muted=!video.muted;
+    video.muted = !video.muted;
 
-    mute.textContent =
+    muteBtn.textContent =
         video.muted ? "🔇" : "🔊";
 
     showControls();
@@ -743,58 +567,13 @@ mute.onclick=e=>{
 };
 
 
-volume.oninput=()=>{
+/*
+=========================================
+FULLSCREEN
+=========================================
+*/
 
-    video.volume=
-        Number(volume.value);
-
-    video.muted=
-        video.volume===0;
-
-    mute.textContent=
-        video.muted ? "🔇" : "🔊";
-
-};
-
-
-/* =========================================
-   SETTINGS
-========================================= */
-
-settingsBtn.onclick=e=>{
-
-    e.stopPropagation();
-
-    settings.classList.toggle("show");
-
-    showControls();
-
-};
-
-
-document.querySelectorAll(
-    ".menuItem"
-).forEach(item=>{
-
-    item.onclick=()=>{
-
-        video.playbackRate =
-            Number(item.dataset.speed);
-
-        settings.classList.remove("show");
-
-        showControls();
-
-    };
-
-});
-
-
-/* =========================================
-   FULLSCREEN
-========================================= */
-
-fullscreen.onclick=e=>{
+fullscreenBtn.onclick = function(e){
 
     e.stopPropagation();
 
@@ -813,121 +592,69 @@ fullscreen.onclick=e=>{
 };
 
 
-/* =========================================
-   PROGRESS / SEEK
-========================================= */
+/*
+=========================================
+PROGRESS
+=========================================
+*/
 
 video.addEventListener(
     "timeupdate",
-    ()=>{
+    function(){
 
         if(!video.duration) return;
 
         const percent =
             (video.currentTime /
-             video.duration)*100;
+             video.duration) * 100;
 
         progressFill.style.width =
-            percent+"%";
-
-        progressDot.style.left =
-            percent+"%";
+            percent + "%";
 
     }
 );
 
 
-progress.addEventListener(
-    "click",
-    e=>{
+progress.onclick = function(e){
 
-        if(!video.duration) return;
+    if(!video.duration) return;
 
-        const rect =
-            progress.getBoundingClientRect();
+    const rect =
+        progress.getBoundingClientRect();
 
-        const percent =
-            (e.clientX-rect.left) /
-            rect.width;
+    const percent =
+        (e.clientX - rect.left) /
+        rect.width;
 
-        video.currentTime =
-            percent*video.duration;
+    video.currentTime =
+        percent * video.duration;
 
-        showControls();
+    showControls();
 
-    }
-);
+};
 
 
-/* =========================================
-   BUFFER
-========================================= */
-
-video.addEventListener(
-    "progress",
-    ()=>{
-
-        if(
-            video.buffered.length &&
-            video.duration
-        ){
-
-            const end =
-                video.buffered.end(
-                    video.buffered.length-1
-                );
-
-            buffer.style.width =
-                (end/video.duration*100)+"%";
-
-        }
-
-    }
-);
-
-
-/* =========================================
-   LOADING
-========================================= */
-
-video.addEventListener(
-    "waiting",
-    ()=>{
-        loader.classList.add("show");
-    }
-);
-
-
-video.addEventListener(
-    "playing",
-    ()=>{
-
-        loader.classList.remove("show");
-
-        centerPlay.classList.remove("show");
-
-    }
-);
-
-
-/* =========================================
-   TAP VIDEO
-========================================= */
+/*
+=========================================
+TAP VIDEO
+=========================================
+*/
 
 player.addEventListener(
     "click",
-    e=>{
+    function(e){
 
         if(
             e.target.closest(".controls") ||
-            e.target.closest(".settings") ||
-            e.target===centerPlay
+            e.target === centerPlay
         ){
             return;
         }
 
         if(
-            player.classList.contains("visible")
+            player.classList.contains(
+                "show-controls"
+            )
         ){
 
             hideControls();
@@ -942,19 +669,44 @@ player.addEventListener(
 );
 
 
-/* =========================================
-   MOUSE
-========================================= */
+/*
+=========================================
+LOADING
+=========================================
+*/
+
+video.addEventListener(
+    "waiting",
+    function(){
+
+        loader.style.display="block";
+
+    }
+);
+
+
+video.addEventListener(
+    "playing",
+    function(){
+
+        loader.style.display="none";
+
+        centerPlay.classList.remove("show");
+
+    }
+);
+
+
+/*
+=========================================
+MOUSE / TOUCH
+=========================================
+*/
 
 player.addEventListener(
     "mousemove",
     showControls
 );
-
-
-/* =========================================
-   TOUCH
-========================================= */
 
 player.addEventListener(
     "touchstart",
@@ -963,11 +715,13 @@ player.addEventListener(
 );
 
 
-/* =========================================
-   START
-========================================= */
+/*
+=========================================
+START
+=========================================
+*/
 
-start();
+startPlayer();
 
 </script>
 
