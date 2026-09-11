@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
 <title>Live Player</title>
 
@@ -20,7 +20,7 @@ html,body{
     height:100%;
     background:#000;
     overflow:hidden;
-    font-family:Arial,sans-serif;
+    font-family:Arial,Helvetica,sans-serif;
 }
 
 .player{
@@ -28,72 +28,95 @@ html,body{
     width:100%;
     height:100%;
     background:#000;
+    overflow:hidden;
+    user-select:none;
 }
 
 video{
+    position:absolute;
+    inset:0;
     width:100%;
     height:100%;
     object-fit:contain;
     background:#000;
 }
 
-/* Loading */
+/* DARK GRADIENTS */
 
-.loader{
+.topShade{
     position:absolute;
-    top:50%;
-    left:50%;
-    width:42px;
-    height:42px;
-    margin:-21px;
-    border:4px solid #ffffff35;
-    border-top-color:#fff;
-    border-radius:50%;
-    animation:spin .7s linear infinite;
+    top:0;
+    left:0;
+    right:0;
+    height:90px;
+    background:linear-gradient(#0009,transparent);
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
 }
 
-@keyframes spin{
-    to{transform:rotate(360deg)}
+.bottomShade{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:125px;
+    background:linear-gradient(transparent,#000d);
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
 }
-
-/* Controls */
 
 .controls{
     position:absolute;
     left:0;
     right:0;
     bottom:0;
-
-    padding:45px 14px 12px;
-
-    background:linear-gradient(
-        transparent,
-        #000e
-    );
-
+    padding:0 13px 10px;
     opacity:0;
+    transform:translateY(8px);
     transition:.25s;
-
     pointer-events:none;
 }
 
-.player.show-controls .controls{
+.visible .controls{
     opacity:1;
+    transform:none;
     pointer-events:auto;
 }
 
-/* Progress */
-
-.progress{
-    height:4px;
-    background:#ffffff55;
-    border-radius:5px;
-    cursor:pointer;
-    margin-bottom:8px;
-    position:relative;
+.visible .topShade,
+.visible .bottomShade{
+    opacity:1;
 }
 
-.progress-fill{
+/* PROGRESS */
+
+.progress{
+    position:relative;
+    width:100%;
+    height:4px;
+    background:#ffffff55;
+    cursor:pointer;
+    margin-bottom:10px;
+    border-radius:5px;
+}
+
+.progress:hover{
+    height:6px;
+}
+
+.buffer{
+    position:absolute;
+    left:0;
+    top:0;
+    height:100%;
+    width:0;
+    background:#ffffff66;
+    border-radius:5px;
+}
+
+.progressFill{
     position:absolute;
     left:0;
     top:0;
@@ -103,7 +126,23 @@ video{
     border-radius:5px;
 }
 
-/* Row */
+.progressDot{
+    position:absolute;
+    width:11px;
+    height:11px;
+    border-radius:50%;
+    background:#ff0033;
+    top:50%;
+    left:0;
+    transform:translate(-50%,-50%);
+    opacity:0;
+}
+
+.progress:hover .progressDot{
+    opacity:1;
+}
+
+/* CONTROL ROW */
 
 .row{
     display:flex;
@@ -112,13 +151,17 @@ video{
 }
 
 button{
-    width:40px;
-    height:40px;
     border:0;
     background:transparent;
     color:#fff;
+    width:39px;
+    height:39px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px;
+    cursor:pointer;
     font-size:19px;
-    border-radius:7px;
 }
 
 button:active{
@@ -129,61 +172,166 @@ button:active{
     flex:1;
 }
 
-/* Quality */
+/* VOLUME */
 
-select{
-    height:38px;
-    background:#181818;
+.volumeBox{
+    display:flex;
+    align-items:center;
+}
+
+.volumeRange{
+    width:0;
+    opacity:0;
+    transition:.2s;
+    accent-color:#fff;
+}
+
+.volumeBox:hover .volumeRange{
+    width:75px;
+    opacity:1;
+}
+
+/* LIVE */
+
+.live{
+    display:flex;
+    align-items:center;
+    gap:6px;
     color:#fff;
-    border:0;
-    border-radius:7px;
-    padding:0 9px;
-    outline:none;
+    font-size:12px;
+    font-weight:bold;
+    margin-right:5px;
 }
 
-/* Center play */
-
-.center-play{
-    position:absolute;
-    top:50%;
-    left:50%;
-    transform:translate(-50%,-50%);
-
-    width:70px;
-    height:70px;
-
+.dot{
+    width:7px;
+    height:7px;
+    background:#ff0033;
     border-radius:50%;
-    border:0;
-
-    background:#fff;
-    color:#111;
-
-    font-size:28px;
-
-    display:none;
 }
 
-.center-play.show{
+/* SETTINGS */
+
+.settings{
+    position:absolute;
+    right:50px;
+    bottom:58px;
+    width:190px;
+    background:#181818f5;
+    border-radius:10px;
+    padding:7px;
+    display:none;
+    color:#fff;
+    box-shadow:0 5px 25px #000;
+}
+
+.settings.show{
     display:block;
 }
 
-/* Mobile */
+.menuTitle{
+    padding:10px;
+    font-size:13px;
+    color:#aaa;
+}
+
+.menuItem{
+    padding:11px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:14px;
+}
+
+.menuItem:hover{
+    background:#ffffff15;
+}
+
+/* CENTER */
+
+.centerPlay{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:72px;
+    height:72px;
+    border-radius:50%;
+    border:0;
+    background:#ffffffdd;
+    color:#111;
+    font-size:28px;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 3px 20px #0008;
+}
+
+.centerPlay.show{
+    display:flex;
+}
+
+/* LOADER */
+
+.loader{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:42px;
+    height:42px;
+    margin:-21px;
+    border:4px solid #ffffff35;
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    display:none;
+}
+
+.loader.show{
+    display:block;
+}
+
+@keyframes spin{
+    to{transform:rotate(360deg)}
+}
+
+/* QUALITY */
+
+.quality{
+    width:100%;
+    padding:10px;
+    background:#222;
+    color:#fff;
+    border:0;
+    border-radius:6px;
+    outline:none;
+}
+
+/* MOBILE */
 
 @media(max-width:600px){
 
     .controls{
-        padding:35px 7px 7px;
+        padding:0 7px 7px;
     }
 
     button{
         width:35px;
         height:35px;
-        font-size:16px;
+        font-size:17px;
     }
 
-    select{
-        height:35px;
-        font-size:12px;
+    .live{
+        font-size:10px;
+    }
+
+    .settings{
+        right:40px;
+        bottom:52px;
+        width:170px;
+    }
+
+    .volumeRange{
+        display:none;
     }
 }
 </style>
@@ -193,55 +341,89 @@ select{
 
 <div class="player" id="player">
 
-    <video
-        id="video"
-        playsinline
-        preload="auto">
-    </video>
+<video id="video" playsinline></video>
 
-    <div class="loader" id="loader"></div>
+<div class="topShade"></div>
+<div class="bottomShade"></div>
 
-    <button
-        class="center-play"
-        id="centerPlay">
-        ▶
-    </button>
+<div class="loader" id="loader"></div>
 
-    <div class="controls">
+<button class="centerPlay" id="centerPlay">▶</button>
 
-        <div
-            class="progress"
-            id="progress">
+<div class="settings" id="settings">
 
-            <div
-                class="progress-fill"
-                id="progressFill">
-            </div>
+    <div class="menuTitle">Quality</div>
+
+    <select class="quality" id="quality">
+        <option value="-1">Auto</option>
+    </select>
+
+    <div class="menuTitle">Playback speed</div>
+
+    <div class="menuItem" data-speed="1">Normal</div>
+    <div class="menuItem" data-speed="1.25">1.25×</div>
+    <div class="menuItem" data-speed="1.5">1.5×</div>
+    <div class="menuItem" data-speed="2">2×</div>
+
+</div>
+
+<div class="controls">
+
+    <div class="progress" id="progress">
+
+        <div class="buffer" id="buffer"></div>
+
+        <div class="progressFill" id="progressFill"></div>
+
+        <div class="progressDot" id="progressDot"></div>
+
+    </div>
+
+    <div class="row">
+
+        <button id="play">▶</button>
+
+        <div class="volumeBox">
+
+            <button id="mute">🔊</button>
+
+            <input
+                class="volumeRange"
+                id="volume"
+                type="range"
+                min="0"
+                max="1"
+                step=".01"
+                value="1">
 
         </div>
 
-        <div class="row">
+        <span class="spacer"></span>
 
-            <button id="playBtn">▶</button>
-
-            <button id="muteBtn">🔊</button>
-
-            <select id="quality">
-                <option value="-1">Auto</option>
-            </select>
-
-            <div class="spacer"></div>
-
-            <button id="fullscreenBtn">⛶</button>
-
+        <div class="live">
+            <span class="dot"></span>
+            LIVE
         </div>
+
+        <button id="settingsBtn">⚙</button>
+
+        <button id="fullscreen">⛶</button>
 
     </div>
 
 </div>
 
+</div>
 
 <script>
+
+/* =========================================
+   PUT YOUR AUTHORIZED MASTER HLS URL HERE
+========================================= */
+
+const STREAM_URL =
+"https://cdn30091.gufin435siv.com/stream2/i-cdn-0/2e416ada2142dc69bd6ab18108c2596c/MJTMsp1RshGTygnMNRUR2N2MSlnWXZEdMNDZzQWe5MDZzMmdZJTO1R2RWVHZDljekhkSsl1VwYnWtx2cihVT2llMFlXWyk1dPRkTpllaJl3TEVFeNpWU3p1VFlnWUlFeOJTWy4keVhnTqlVP:1789115320:47.11.118.202:e69b43a72ead21cdb9088b1bcdd7a72b6e3c2ca5d6fe22731779d57c40151952:=4ERjVXTUVUdNRVR0wkaJdXTn1TP/1080/index.m3u8";
+
 
 const player =
 document.getElementById("player");
@@ -252,20 +434,29 @@ document.getElementById("video");
 const loader =
 document.getElementById("loader");
 
-const playBtn =
-document.getElementById("playBtn");
+const centerPlay =
+document.getElementById("centerPlay");
 
-const muteBtn =
-document.getElementById("muteBtn");
+const play =
+document.getElementById("play");
+
+const mute =
+document.getElementById("mute");
+
+const volume =
+document.getElementById("volume");
+
+const fullscreen =
+document.getElementById("fullscreen");
+
+const settingsBtn =
+document.getElementById("settingsBtn");
+
+const settings =
+document.getElementById("settings");
 
 const quality =
 document.getElementById("quality");
-
-const fullscreenBtn =
-document.getElementById("fullscreenBtn");
-
-const centerPlay =
-document.getElementById("centerPlay");
 
 const progress =
 document.getElementById("progress");
@@ -273,40 +464,32 @@ document.getElementById("progress");
 const progressFill =
 document.getElementById("progressFill");
 
+const progressDot =
+document.getElementById("progressDot");
 
-/*
-=========================================
-AUTHORIZED HLS URL
-=========================================
-*/
-
-const STREAM_URL = "https://propinquitypostulate.website/pl/H4sIAAAAAAAAAwXBx26DMAAA0F8ymBEq5RBaTOvIdlleN4YTCmaISBHw9X2vM6GBXXhpwSNqYXhxTWuA.wjc0IuaALQfGuwnE8.dT5HSQ45ruw40zcsS6aVJX5CVOSXJ6uWTbzsZc1NRv7D4TmRXdBB7JMFnnY4..4oPI3tZV5g0Z54VsFe5_HmzRJ0dj7G2653M2cEkcbmDRv29YjH3nzWyhJa3zVT7IYS2bboeDD1dKvXG_6KZTKvKwB4o8fLIEYEG9mU7OX0looTKxdf2tulxgdXApU6RFRPC9dA7ClhGuU1KiN6_2fX6D4Two9UJAQAA/0f23fcf79be0e63ab6d07c73d2dcf717/index.m3u8?token=eyJ0eXAiOiJKV1QiLCJhbGciOiJIUzI1NiJ9.eyJpc3MiOiJteS1hdXRoIiwiaWF0IjoxNzg5MDUzMDA2LCJuYmYiOjE3ODkwNTMwMDYsImV4cCI6MTc4OTA2NzQwNiwiaXBfY2lkciI6IjI0MDk6NDBjMTozMDE0OjQ2Mjo6LzY0In0.Ck8AtN3YnLydoIGp3wAWZvR7yr6Z9NwIpfrxiiutYA4";
+const buffer =
+document.getElementById("buffer");
 
 
-let hls = null;
-let hideTimer = null;
+let hls=null;
+let hideTimer=null;
 
 
-/*
-=========================================
-CONTROLS
-=========================================
-*/
+/* =========================================
+   SHOW / HIDE CONTROLS
+========================================= */
 
 function showControls(){
 
-    player.classList.add("show-controls");
+    player.classList.add("visible");
 
     clearTimeout(hideTimer);
 
-    hideTimer = setTimeout(() => {
+    hideTimer=setTimeout(()=>{
 
         if(!video.paused){
-
-            player.classList.remove(
-                "show-controls"
-            );
-
+            player.classList.remove("visible");
+            settings.classList.remove("show");
         }
 
     },5000);
@@ -315,85 +498,29 @@ function showControls(){
 
 function hideControls(){
 
-    player.classList.remove(
-        "show-controls"
-    );
+    player.classList.remove("visible");
+
+    settings.classList.remove("show");
 
     clearTimeout(hideTimer);
 }
 
 
-/*
-=========================================
-QUALITY
-=========================================
-*/
+/* =========================================
+   HLS
+========================================= */
 
-function makeQualityMenu(){
+function start(){
 
-    quality.innerHTML =
-        '<option value="-1">Auto</option>';
-
-    if(!hls || !hls.levels.length){
-        return;
-    }
-
-    hls.levels.forEach(
-        (level,index) => {
-
-            const option =
-                document.createElement("option");
-
-            option.value = index;
-
-            option.textContent =
-                level.height
-                ? level.height + "p"
-                : "Quality " + (index+1);
-
-            quality.appendChild(option);
-
-        }
-    );
-}
-
-
-quality.addEventListener(
-    "change",
-    function(){
-
-        if(!hls) return;
-
-        hls.currentLevel =
-            Number(this.value);
-
-        showControls();
-
-    }
-);
-
-
-/*
-=========================================
-START HLS
-=========================================
-*/
-
-function startPlayer(){
-
-    loader.style.display="block";
+    loader.classList.add("show");
 
 
     if(Hls.isSupported()){
 
-        hls = new Hls({
-
+        hls=new Hls({
             enableWorker:true,
-
             lowLatencyMode:true,
-
             backBufferLength:30
-
         });
 
 
@@ -404,13 +531,13 @@ function startPlayer(){
 
         hls.on(
             Hls.Events.MANIFEST_PARSED,
-            function(){
+            ()=>{
 
-                loader.style.display="none";
+                loader.classList.remove("show");
 
-                makeQualityMenu();
+                createQualityList();
 
-                video.play().catch(() => {
+                video.play().catch(()=>{
 
                     centerPlay.classList.add("show");
 
@@ -424,19 +551,19 @@ function startPlayer(){
 
         hls.on(
             Hls.Events.ERROR,
-            function(event,data){
+            (event,data)=>{
 
                 if(data.fatal){
 
-                    loader.style.display="block";
+                    loader.classList.add("show");
 
-                    setTimeout(() => {
+                    setTimeout(()=>{
 
                         if(hls){
                             hls.destroy();
                         }
 
-                        startPlayer();
+                        start();
 
                     },3000);
 
@@ -453,15 +580,14 @@ function startPlayer(){
         )
     ){
 
-        video.src = STREAM_URL;
+        video.src=STREAM_URL;
 
         video.addEventListener(
             "loadedmetadata",
-            function(){
+            ()=>{
+                loader.classList.remove("show");
 
-                loader.style.display="none";
-
-                video.play().catch(() => {
+                video.play().catch(()=>{
 
                     centerPlay.classList.add("show");
 
@@ -474,15 +600,68 @@ function startPlayer(){
         );
 
     }
-
 }
 
 
-/*
-=========================================
-PLAY / PAUSE
-=========================================
-*/
+/* =========================================
+   QUALITY LIST
+========================================= */
+
+function createQualityList(){
+
+    quality.innerHTML =
+        '<option value="-1">Auto</option>';
+
+
+    if(!hls || !hls.levels.length){
+        return;
+    }
+
+
+    hls.levels.forEach(
+        (level,index)=>{
+
+            const option =
+                document.createElement("option");
+
+            option.value=index;
+
+            option.textContent =
+                level.height
+                ? level.height+"p"
+                : "Quality "+(index+1);
+
+            quality.appendChild(option);
+
+        }
+    );
+}
+
+
+/* =========================================
+   QUALITY CHANGE
+========================================= */
+
+quality.addEventListener(
+    "change",
+    e=>{
+
+        if(hls){
+
+            hls.currentLevel =
+                Number(e.target.value);
+
+        }
+
+        showControls();
+
+    }
+);
+
+
+/* =========================================
+   PLAY
+========================================= */
 
 function togglePlay(){
 
@@ -495,11 +674,10 @@ function togglePlay(){
         video.pause();
 
     }
-
 }
 
 
-playBtn.onclick = function(e){
+play.onclick=e=>{
 
     e.stopPropagation();
 
@@ -510,7 +688,7 @@ playBtn.onclick = function(e){
 };
 
 
-centerPlay.onclick = function(e){
+centerPlay.onclick=e=>{
 
     e.stopPropagation();
 
@@ -521,9 +699,9 @@ centerPlay.onclick = function(e){
 
 video.addEventListener(
     "play",
-    function(){
+    ()=>{
 
-        playBtn.textContent="⏸";
+        play.textContent="⏸";
 
         centerPlay.classList.remove("show");
 
@@ -535,9 +713,9 @@ video.addEventListener(
 
 video.addEventListener(
     "pause",
-    function(){
+    ()=>{
 
-        playBtn.textContent="▶";
+        play.textContent="▶";
 
         centerPlay.classList.add("show");
 
@@ -547,19 +725,17 @@ video.addEventListener(
 );
 
 
-/*
-=========================================
-MUTE
-=========================================
-*/
+/* =========================================
+   MUTE
+========================================= */
 
-muteBtn.onclick = function(e){
+mute.onclick=e=>{
 
     e.stopPropagation();
 
-    video.muted = !video.muted;
+    video.muted=!video.muted;
 
-    muteBtn.textContent =
+    mute.textContent =
         video.muted ? "🔇" : "🔊";
 
     showControls();
@@ -567,13 +743,58 @@ muteBtn.onclick = function(e){
 };
 
 
-/*
-=========================================
-FULLSCREEN
-=========================================
-*/
+volume.oninput=()=>{
 
-fullscreenBtn.onclick = function(e){
+    video.volume=
+        Number(volume.value);
+
+    video.muted=
+        video.volume===0;
+
+    mute.textContent=
+        video.muted ? "🔇" : "🔊";
+
+};
+
+
+/* =========================================
+   SETTINGS
+========================================= */
+
+settingsBtn.onclick=e=>{
+
+    e.stopPropagation();
+
+    settings.classList.toggle("show");
+
+    showControls();
+
+};
+
+
+document.querySelectorAll(
+    ".menuItem"
+).forEach(item=>{
+
+    item.onclick=()=>{
+
+        video.playbackRate =
+            Number(item.dataset.speed);
+
+        settings.classList.remove("show");
+
+        showControls();
+
+    };
+
+});
+
+
+/* =========================================
+   FULLSCREEN
+========================================= */
+
+fullscreen.onclick=e=>{
 
     e.stopPropagation();
 
@@ -592,69 +813,121 @@ fullscreenBtn.onclick = function(e){
 };
 
 
-/*
-=========================================
-PROGRESS
-=========================================
-*/
+/* =========================================
+   PROGRESS / SEEK
+========================================= */
 
 video.addEventListener(
     "timeupdate",
-    function(){
+    ()=>{
 
         if(!video.duration) return;
 
         const percent =
             (video.currentTime /
-             video.duration) * 100;
+             video.duration)*100;
 
         progressFill.style.width =
-            percent + "%";
+            percent+"%";
+
+        progressDot.style.left =
+            percent+"%";
 
     }
 );
 
 
-progress.onclick = function(e){
+progress.addEventListener(
+    "click",
+    e=>{
 
-    if(!video.duration) return;
+        if(!video.duration) return;
 
-    const rect =
-        progress.getBoundingClientRect();
+        const rect =
+            progress.getBoundingClientRect();
 
-    const percent =
-        (e.clientX - rect.left) /
-        rect.width;
+        const percent =
+            (e.clientX-rect.left) /
+            rect.width;
 
-    video.currentTime =
-        percent * video.duration;
+        video.currentTime =
+            percent*video.duration;
 
-    showControls();
+        showControls();
 
-};
+    }
+);
 
 
-/*
-=========================================
-TAP VIDEO
-=========================================
-*/
+/* =========================================
+   BUFFER
+========================================= */
+
+video.addEventListener(
+    "progress",
+    ()=>{
+
+        if(
+            video.buffered.length &&
+            video.duration
+        ){
+
+            const end =
+                video.buffered.end(
+                    video.buffered.length-1
+                );
+
+            buffer.style.width =
+                (end/video.duration*100)+"%";
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   LOADING
+========================================= */
+
+video.addEventListener(
+    "waiting",
+    ()=>{
+        loader.classList.add("show");
+    }
+);
+
+
+video.addEventListener(
+    "playing",
+    ()=>{
+
+        loader.classList.remove("show");
+
+        centerPlay.classList.remove("show");
+
+    }
+);
+
+
+/* =========================================
+   TAP VIDEO
+========================================= */
 
 player.addEventListener(
     "click",
-    function(e){
+    e=>{
 
         if(
             e.target.closest(".controls") ||
-            e.target === centerPlay
+            e.target.closest(".settings") ||
+            e.target===centerPlay
         ){
             return;
         }
 
         if(
-            player.classList.contains(
-                "show-controls"
-            )
+            player.classList.contains("visible")
         ){
 
             hideControls();
@@ -669,44 +942,19 @@ player.addEventListener(
 );
 
 
-/*
-=========================================
-LOADING
-=========================================
-*/
-
-video.addEventListener(
-    "waiting",
-    function(){
-
-        loader.style.display="block";
-
-    }
-);
-
-
-video.addEventListener(
-    "playing",
-    function(){
-
-        loader.style.display="none";
-
-        centerPlay.classList.remove("show");
-
-    }
-);
-
-
-/*
-=========================================
-MOUSE / TOUCH
-=========================================
-*/
+/* =========================================
+   MOUSE
+========================================= */
 
 player.addEventListener(
     "mousemove",
     showControls
 );
+
+
+/* =========================================
+   TOUCH
+========================================= */
 
 player.addEventListener(
     "touchstart",
@@ -715,13 +963,11 @@ player.addEventListener(
 );
 
 
-/*
-=========================================
-START
-=========================================
-*/
+/* =========================================
+   START
+========================================= */
 
-startPlayer();
+start();
 
 </script>
 
