@@ -1,56 +1,974 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Live Stream</title>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no">
 
-    <script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<title>Live Player</title>
 
-    <style>
-        body {
-            margin: 0;
-            background: #000;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            min-height: 100vh;
-        }
+<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
 
-        video {
-            width: 100%;
-            max-width: 1200px;
-            height: auto;
-        }
-    </style>
+<style>
+*{
+    box-sizing:border-box;
+    -webkit-tap-highlight-color:transparent;
+}
+
+html,body{
+    margin:0;
+    width:100%;
+    height:100%;
+    background:#000;
+    overflow:hidden;
+    font-family:Arial,Helvetica,sans-serif;
+}
+
+.player{
+    position:relative;
+    width:100%;
+    height:100%;
+    background:#000;
+    overflow:hidden;
+    user-select:none;
+}
+
+video{
+    position:absolute;
+    inset:0;
+    width:100%;
+    height:100%;
+    object-fit:contain;
+    background:#000;
+}
+
+/* DARK GRADIENTS */
+
+.topShade{
+    position:absolute;
+    top:0;
+    left:0;
+    right:0;
+    height:90px;
+    background:linear-gradient(#0009,transparent);
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
+}
+
+.bottomShade{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    height:125px;
+    background:linear-gradient(transparent,#000d);
+    opacity:0;
+    transition:.25s;
+    pointer-events:none;
+}
+
+.controls{
+    position:absolute;
+    left:0;
+    right:0;
+    bottom:0;
+    padding:0 13px 10px;
+    opacity:0;
+    transform:translateY(8px);
+    transition:.25s;
+    pointer-events:none;
+}
+
+.visible .controls{
+    opacity:1;
+    transform:none;
+    pointer-events:auto;
+}
+
+.visible .topShade,
+.visible .bottomShade{
+    opacity:1;
+}
+
+/* PROGRESS */
+
+.progress{
+    position:relative;
+    width:100%;
+    height:4px;
+    background:#ffffff55;
+    cursor:pointer;
+    margin-bottom:10px;
+    border-radius:5px;
+}
+
+.progress:hover{
+    height:6px;
+}
+
+.buffer{
+    position:absolute;
+    left:0;
+    top:0;
+    height:100%;
+    width:0;
+    background:#ffffff66;
+    border-radius:5px;
+}
+
+.progressFill{
+    position:absolute;
+    left:0;
+    top:0;
+    height:100%;
+    width:0;
+    background:#ff0033;
+    border-radius:5px;
+}
+
+.progressDot{
+    position:absolute;
+    width:11px;
+    height:11px;
+    border-radius:50%;
+    background:#ff0033;
+    top:50%;
+    left:0;
+    transform:translate(-50%,-50%);
+    opacity:0;
+}
+
+.progress:hover .progressDot{
+    opacity:1;
+}
+
+/* CONTROL ROW */
+
+.row{
+    display:flex;
+    align-items:center;
+    gap:5px;
+}
+
+button{
+    border:0;
+    background:transparent;
+    color:#fff;
+    width:39px;
+    height:39px;
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:19px;
+}
+
+button:active{
+    background:#ffffff20;
+}
+
+.spacer{
+    flex:1;
+}
+
+/* VOLUME */
+
+.volumeBox{
+    display:flex;
+    align-items:center;
+}
+
+.volumeRange{
+    width:0;
+    opacity:0;
+    transition:.2s;
+    accent-color:#fff;
+}
+
+.volumeBox:hover .volumeRange{
+    width:75px;
+    opacity:1;
+}
+
+/* LIVE */
+
+.live{
+    display:flex;
+    align-items:center;
+    gap:6px;
+    color:#fff;
+    font-size:12px;
+    font-weight:bold;
+    margin-right:5px;
+}
+
+.dot{
+    width:7px;
+    height:7px;
+    background:#ff0033;
+    border-radius:50%;
+}
+
+/* SETTINGS */
+
+.settings{
+    position:absolute;
+    right:50px;
+    bottom:58px;
+    width:190px;
+    background:#181818f5;
+    border-radius:10px;
+    padding:7px;
+    display:none;
+    color:#fff;
+    box-shadow:0 5px 25px #000;
+}
+
+.settings.show{
+    display:block;
+}
+
+.menuTitle{
+    padding:10px;
+    font-size:13px;
+    color:#aaa;
+}
+
+.menuItem{
+    padding:11px;
+    border-radius:6px;
+    cursor:pointer;
+    font-size:14px;
+}
+
+.menuItem:hover{
+    background:#ffffff15;
+}
+
+/* CENTER */
+
+.centerPlay{
+    position:absolute;
+    left:50%;
+    top:50%;
+    transform:translate(-50%,-50%);
+    width:72px;
+    height:72px;
+    border-radius:50%;
+    border:0;
+    background:#ffffffdd;
+    color:#111;
+    font-size:28px;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    box-shadow:0 3px 20px #0008;
+}
+
+.centerPlay.show{
+    display:flex;
+}
+
+/* LOADER */
+
+.loader{
+    position:absolute;
+    left:50%;
+    top:50%;
+    width:42px;
+    height:42px;
+    margin:-21px;
+    border:4px solid #ffffff35;
+    border-top-color:#fff;
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+    display:none;
+}
+
+.loader.show{
+    display:block;
+}
+
+@keyframes spin{
+    to{transform:rotate(360deg)}
+}
+
+/* QUALITY */
+
+.quality{
+    width:100%;
+    padding:10px;
+    background:#222;
+    color:#fff;
+    border:0;
+    border-radius:6px;
+    outline:none;
+}
+
+/* MOBILE */
+
+@media(max-width:600px){
+
+    .controls{
+        padding:0 7px 7px;
+    }
+
+    button{
+        width:35px;
+        height:35px;
+        font-size:17px;
+    }
+
+    .live{
+        font-size:10px;
+    }
+
+    .settings{
+        right:40px;
+        bottom:52px;
+        width:170px;
+    }
+
+    .volumeRange{
+        display:none;
+    }
+}
+</style>
 </head>
 
 <body>
 
-<video id="video" controls autoplay playsinline></video>
+<div class="player" id="player">
+
+<video id="video" playsinline></video>
+
+<div class="topShade"></div>
+<div class="bottomShade"></div>
+
+<div class="loader" id="loader"></div>
+
+<button class="centerPlay" id="centerPlay">▶</button>
+
+<div class="settings" id="settings">
+
+    <div class="menuTitle">Quality</div>
+
+    <select class="quality" id="quality">
+        <option value="-1">Auto</option>
+    </select>
+
+    <div class="menuTitle">Playback speed</div>
+
+    <div class="menuItem" data-speed="1">Normal</div>
+    <div class="menuItem" data-speed="1.25">1.25×</div>
+    <div class="menuItem" data-speed="1.5">1.5×</div>
+    <div class="menuItem" data-speed="2">2×</div>
+
+</div>
+
+<div class="controls">
+
+    <div class="progress" id="progress">
+
+        <div class="buffer" id="buffer"></div>
+
+        <div class="progressFill" id="progressFill"></div>
+
+        <div class="progressDot" id="progressDot"></div>
+
+    </div>
+
+    <div class="row">
+
+        <button id="play">▶</button>
+
+        <div class="volumeBox">
+
+            <button id="mute">🔊</button>
+
+            <input
+                class="volumeRange"
+                id="volume"
+                type="range"
+                min="0"
+                max="1"
+                step=".01"
+                value="1">
+
+        </div>
+
+        <span class="spacer"></span>
+
+        <div class="live">
+            <span class="dot"></span>
+            LIVE
+        </div>
+
+        <button id="settingsBtn">⚙</button>
+
+        <button id="fullscreen">⛶</button>
+
+    </div>
+
+</div>
+
+</div>
 
 <script>
-    const video = document.getElementById('video');
 
-    const streamURL = 'https://fa723fc1b171.aps33.playlist.live-video.net/v1/playlist/Co4M7KSoTtgQoejlWJiF3URmFA_UGn9GhqiWDL-w3Ik4Y8LLKCTcTGu-k5dw4U5uBOPRrSXv38voQH8iDdAcWMAL8N-rQM8EmbeTNgjWahNlCuQ03XkzCCGn8OQjmxmqS1G6wYUAfvwIXofMcWwLcEPc6apRegy5ydjJgti7sJVso40HoWYTQOUWDdnxXeOez8-y5Kk64USWi68bkYRpDn0Jz387s-vwh3-DVD_o4KP0r6t8C4ctO12IATgm2fjYrpgx4QvKLcslIcaJzid11dsW5XEB970ziBp-EY0nbwsXyCSZ92Pv8_6UVMdvuM2iPwIkLYBj7BTRssE0ordF0p54w7tp9388iBar9HhZKu0ZG-5qDbZzAfVMMdGxFRnrR2zunP-meUyTFZ5hTtsUX4IUvQCnkwt5ufC94CUAM_Wa-mEdGx97GfyF0kzsQGKBEfhmVrfaWmft2DCgTxx9WETJRw68pbGSqlLO8BPBuZKsqeEZYVF5pAT-in3Rd8InXPhp1gARFkZcILywwbUo9WN7dfmpXTWZ3KCiEf4Ngw1mBvQwwou5qQVWG7FjvtPOnvyz0rDIX_FVk9van_qmEmPJZILDINgMwwtX1vBU6tgGsjCr_PsGkU6wtB3O-7abJpmmpFlR2qgcd7nhJ8v4p7Kk7zLDbLzMEpaDW4hJITeYgj4kUJ5QKtG1d7mgVfWfg0FXQkmsmCovbnEun9RjhaAwJE0qZmzigCzqSZEMimRYkhtZ6L5R7OfGfuCH2R02ypc6VscIxtz42nmzLDZpR_WAiyG5VhSgS2denfF_aHp9DYsOJCE1U3JOVfUGGxkXT51MA3xQstOXHFFv_qsjbjw7_mfLR6pQzWNxvrrFF-viW886_l2QipHLfgbmiCUtrZJm-Vh8r4R9DhgStZr315vWVwQBls2bhjj4ZZrSuUvOPmL_4wxhycYLQ-7Y7hCJc25wkoXmoNBjPWow4zfk20L6ENop7C05Ko6bpDjCThl08xUW6Qu56Gsy4clOyr8Zx3tpqeUJiUfddj2EzM2DBPTaAwySla0ln-QOfkiRnTt7anrRJ5YKTgT_pl1X9jlaTnclpkG66MhEWOMqoBOkM5v84-E9JVRBOPUxA1GIY2ppVxCVA1_xGEdrt078uOzVLHIaRbD-HGSPdiWFwAJ2bwsr9cqsRbNWxxSq6K6cReE1f7R7e18Vqh9IDcveB8KW_LbgcqPp5-gx4FN8c5R6HBCPVkFopgihv5hwsMhWeIVXWUhjSGR9yeAyiWt1YIZyCGudZxjr2C5McsHx5wY6IwDlqmD_bXuHnanoaY4uQYqCu9F_CE_T5pqNvxX5pq2qJ5_h1TZh4y42OKnXBeSIQ2DaWQJ7XhvS_5-Av9ftMfc0ijzf13UZ4Bo9fgQPMIiQPlkScR8PVM3F3g8dpXCscabz9m-fpUr7iibDbwTQH6npxgDeO2Ije0zZzcZjd35QtEclII3ckJ7MU0qLfKM9YcdUObieu2_tiKLp-BM4o7oG6KRHnp794k5l9NjVaMajjWJlUCT3oghkUZybZjEQJFW9E8fVCXsx151rYE4ICz45WNcRyRp95PeQRPgzotaHMHPWYu3F8cYVBohpgFB03kHdzy05MMWWT1YdoEgg-zcU8nrHfdnWXm-6fw-DeDTiwwUkfnWoy-yAwFUUlHp0wtmtlG0B_dFMghmH1EwthW4IbOAm3uyLNlGaW3j5L0iUaHEkh7RJbci4S7y-LWz_DsS18YxWRBINhI9_9z4xA43vTLIUOYHbRwqv-oWwXlrYiBukej-hXXV6K86UEckN-TxcYy_CYCgBf4pVZaRN45O3RyDNtqlbUxPag-g5AtJvqscp5D_aU9vlbxPMZ_DqxHjUhN8MX54OswV9iW2PuTbrDoCAMYycQnPE_heFT9iuxAaz-qRRvdxqqmYOCaqbKrWjkdav5Py-l-rOIcZnFsog5HIJLgNg1fJxIFp66uw67XryqWnyCdshemZ7tE7FKZniJzC2nYTz69bMpXhAJqBi6ieckuJEoCqe48cT1Ju7D4MEOjC_LC3_x8gXpXYOmsYaDBs8LXY8yni7UGVxeyABKgl1cy13ZXN0LTIwkRA.m3u8';
+/* =========================================
+   PUT YOUR AUTHORIZED MASTER HLS URL HERE
+========================================= */
 
-    if (Hls.isSupported()) {
-        const hls = new Hls();
+const STREAM_URL =
+"https://fa723fc1b171.aps33.playlist.live-video.net/v1/playlist/CssXVJpsAQZh_ap9oxeCaxuPn7LCn3eEBxxd3_E0vob9cytT4JDKSlCNLowI1Jih1W9zuNb8JmioLCZeXOB4z45cEPNzbkPhlvcdbwByWwRLkDZdArGhwNfAobwkiDt4tOd4q1j98_eAVfxQYhymHCQoXGOveD2skB0WIgBxjSX-SGpCGF6sJLWhTD3hmHudaN3XTXtg_WrPzdfYKZRk3_jRqJnxSSo5IkevJWs0vnE1lpaiRp7v3D0ns1NyI2EAxVgMfOV_X32ZbSBc0fWSTrN5KEn4oClzXqDas4kkwTvS1AoviYI-Ny7Y4ZNIGFiE9Lqg3v6JQ0jDKLc0r44LpvY5rjskkUR04z2e-QBuOcxmNsNvAohTCckNIQPWo-JzNbvdyq1gWo44WS3l399UAc0-_bbUug-ICU8LqPXA4ecSY2kQBcKeUnEWuhnBX_-uQdem7mxE9EHbodAo9ENynGZyldJE1N3X0dQb9CTaKlPh5uKy_Ji0gr4qFaP4wYKoXkPBvuPJg6rCPMijZLY70Y4Bi3AbQkxsLDFMJ_0xHn8jR-LPr_h1DK20ZVLogT95FHgywjpIe56-rNCXhwbZ5iEovjJcvkwZWZzx0r37Pm1nxmKgG3brpCIS73HI_EW0dMvHyWlrCvdNJSgo_n4zdyxCVejGvWBoGZ8mBk6Hx3A2u57xnMcQMoZcn2n41YVMdx_crowLirHiLxR4dg3rsJC7r3wxs0nRog2vmTwHPRGY8hF0kFn5aDybFc2p-fdUSPtixJMaUJmhakvtbN6O3zTYSNQlI-V6Z9Ook8TJGnV5Ocp7vhAGN3azAi9KTTcEleNODNpNIKjuBs_rbn_NE6CYB1b8DgbgN0XMj2RPq9pZP3x8k88KicC94rExFJP1bQWEgsj4f1PCzKwRwSuPAh-m8KfGmBFoeSOIwpsj-NWMwFFgI8WhtmEIkj3eA5Xffw9yjx-Q24vTWiwkV4IOqLyYjdjFg8y-gl36z6ofnu-ek7siRBOYsgzKe-B0sO-Nd2rAVPOnEroyQmGaspjit-7v9khui5ljICWqCPcI4SuKUx_MR598IvdO4ZRfetqtZBOIKUe-Pg8-23h7eoTHVXQEXI3R3BGTKztTlHu-YuRfXh4Na6mk1EDe3Osx8PGqwe4uDwJ5M8VQCHRxFFm6mvA-HRUsUcoBLm3tHVBaDwcPqkSxyS5oqDQii97ugnjhqDlTidCXKrFieBcfYSoLLIBsCI7UE35e8XeG5JJYt4-v7lbKuZqmGgjwRcTUzsArfhcWocDGWaQiA-D3A4ctakajVPI1ENmbJ5mELcBIiKIWljYl_LqEK8EmSF38nUE0TA4xYV_ueO3zgRWGqAnTnaIqjJGabByAehq70ifbT006xhsRlEWeKu5ZUbMCCOlJBjWISxZYSgRZUPr_NNnTLSNAX_G3xm4XWkqao22ZsCxBaJMcoCFBZBtYX0PweQ2jqWH6hUp7xn1QGuYMxnw9NChn8c50JgHnQlnd4q1C6WOdQn5ngrwZ7RAY3WwAdiNKz8Q4Ybjcwl6VrwLeQ29BVqMhMWVmiz3f5KPv8Y-mQFzimaeZchZfj2bgNW5eorYdQhINPG7WQQfzBjsf5-WhVGIoxcvMYFvnKMf34RiQ_6287d7QOM9H_19h1UVCLa0h13g9FVqEwhvAHi9HBslyvg9LczgM6-bmazNCc9c0rIsNqUIKmFxklf624qV576WtwtZh4nbpvz3QabG9euSdjUBPgaLv0DGb9AbXBSlEIHYzExoJns8bDj6tLJMyolUSnL-oABffbpJapUBwJUlsalFdh21_R8xiIMKv7WWHVWzFN41h0TgFXuH_FZ9Dw7lVjM3x8ghBHSHHKW8ZjIbbxuKgou8-H3WbnRqMYPkwQGlCUK9mNNGwXMsC4okmJ8hBgn5kd9qhEwo-gKkSZtYEFYYsJLueIH9Tjs1ytTBDaN6hXgQ2_jBa8eP3wQa_u6RKYMMhhUtApsBCoxjzp2wTWY4VsmCPVMCg94OhE2Qi0y80G82E2qx6cV7Y1s824og8cXF6N0nXyQKQ1Orgdqm0NfkqhwdFYiB43s-reIdxJvHKToaDoogYDg1Fd44j-e33OnY7jRfYsRKAXJJH4sTlWS5zHYRN_TjD9Z68-74ajAy1lLJ_MyFW6iNTVxuiS3xM2N55hXUu2Ne8AGsqPYL9h4esaODYO887glogjFjxGjGjIDHgQYZelaZr4RzPkirP3OA-CtRre9whRD8N0P42L_hVntSLQZGi8Pef-Gwfr5VYcpWYHf872RPAWbIz7lAZROsyjaQms94wvrAOW6hw2EeQSSSSEToF3wjcUBNTHSjRTPY9LCwVzoHCWI9r1KNNBw9NylGV5GbFesAn89d123HcaS53dV16ATD7ZcwAKjDBKf3t-KdC3ewNd3R_d-K6aEPtwMsfLCO4dHDgEIyoTyijXE8auJqi5YXbTaf_mVGJer_1Ef5f5c_RDTrbUmthbOxwWoLDzGcMSPOsSr9I4X1Jaohm6QmCVPrSsDDr-RNVbZP1F3FpZDOB5GuyGgTVimtLiRJpQDve9nEpdw3Far5S3SpBBq65Bx_bcD3KzVVnBUWmHCwEOx3UiYbSylWyk1bZlxLd5DzeK4cCg3gjmyG31tHuAqYJMZVPJhzgV7wuTFE2e5JEZYaLTkTqikLicCsb0XqTFl8CfmttSvLDOeHj0OfjmWk_kK_NV52r2md_DqcZmhyFJ7hlWhWQConoT3H_NB2MYoaVz_NQLmy2v-tmuQn7YKs0tPQjMJke5mTRdLvcxOB1jbdQbVgwRcMzpaEXbXBGLBv8zm8tjrTbhJ3jy_MA4NZJdpEtTA4NO2_mMSpZqvrc6RbFy9YedNegyGP6v0o3WevOpJZ-jh7xapEUzQ9si99Gu14mKbggd44XXdJgOHZSczPstjf-ccna_pbobgptt3A5YDoSUIsLYPcsTU0WgiedfmSM3uB6FLm5Jvvs2Timx68y6NE2haabvoq3W7BiuguKUOsuDowtkQx6ba8nOteqdeJi20G2hVepyzi5zjxBoJ1SVVUbIJOOojw8viRTXurLd6kr5pd4pgZktTiIj6_ZbwRgQ0EKK_LFwmkjEPiRfY1PYrkaNGkEloRYCj6Ha_YQ1w0_ONrJ_OiUKni5aEZQr2Ra1wdrLtbEYW1CdfswuEboh6uxfm51OcyCJ1HZDvc-7hTMqzqADXEbSUe31dXnKF81je3Z51zNgn-bF4YnLSv5d4W7BFBhbm4eY_JUawxLgT66NVzkMRij9mCAtwcniH-wG9AoEdkWbGCuREQoxjqEmGYMdBSzFGghMld3UgGj6lFkN9xMPD5tuUqrkJUbjPaznyUY1xjwWEvh2aiz05GB_UkiwWWH9Yd9q-ICMIOt_6J2o5rGnrChE4UOwDu_6c0nH_GvOSuU5R8B5kfzFyIt9ObetBnqvhlB2heRhm1gE1oV7EteuGyaylbGza1BNGI2ZRfOz_VJJeJurvi0WwQakl_TVflTg5Ap3Y0XRj2cwWsYtgKljOMl1KGITFIX4ODunHJl4S2ci4e9h7sdKI817PRtzjP9aL19WDO-ZglA4SxUassMiLJgN381cpYi_68REjsqMzDaV9Nrgo5yO8V9qtUA9R6-CDVwdsp7N_YFDJKN11mQa6hGPdAGDkioQNSp8vhCvMGm0VXRB7Zo1ij8vvpaVA1oN2uqmOhwjWsJhyGAP-CEsk3H8szpepUk6QkXU_gz_yFAKb3_Ts0M3itMdV9Tfn1tOFGFs2DzhIOkZPQUrKTOrk2quFjv2XlRKWOogndvHDvJqoE2rKgsKw0m305NQ40LPTwRzsyzgTPwerjU_EcOEXImwa_xwSufuAMox6CtbByTZ_k_Rzj4o-FwwV_bAhJhgvzAXLguai8k8nbN3AGzuan7MOVEFo6fMuoFio-eZWhjCIwTi0fRrM0rorEqhvZRKtXN9k47r8JKLc1C4Kjcn4hvG69ipCWU8RrLmm004dYG6PPR-x1CjqhaEQCH2BoMJ66xlw6Ctm-yJIrJIAEqCXVzLXdlc3QtMjCREA.m3u8";
 
-        hls.loadSource(streamURL);
+
+const player =
+document.getElementById("player");
+
+const video =
+document.getElementById("video");
+
+const loader =
+document.getElementById("loader");
+
+const centerPlay =
+document.getElementById("centerPlay");
+
+const play =
+document.getElementById("play");
+
+const mute =
+document.getElementById("mute");
+
+const volume =
+document.getElementById("volume");
+
+const fullscreen =
+document.getElementById("fullscreen");
+
+const settingsBtn =
+document.getElementById("settingsBtn");
+
+const settings =
+document.getElementById("settings");
+
+const quality =
+document.getElementById("quality");
+
+const progress =
+document.getElementById("progress");
+
+const progressFill =
+document.getElementById("progressFill");
+
+const progressDot =
+document.getElementById("progressDot");
+
+const buffer =
+document.getElementById("buffer");
+
+
+let hls=null;
+let hideTimer=null;
+
+
+/* =========================================
+   SHOW / HIDE CONTROLS
+========================================= */
+
+function showControls(){
+
+    player.classList.add("visible");
+
+    clearTimeout(hideTimer);
+
+    hideTimer=setTimeout(()=>{
+
+        if(!video.paused){
+            player.classList.remove("visible");
+            settings.classList.remove("show");
+        }
+
+    },5000);
+}
+
+
+function hideControls(){
+
+    player.classList.remove("visible");
+
+    settings.classList.remove("show");
+
+    clearTimeout(hideTimer);
+}
+
+
+/* =========================================
+   HLS
+========================================= */
+
+function start(){
+
+    loader.classList.add("show");
+
+
+    if(Hls.isSupported()){
+
+        hls=new Hls({
+            enableWorker:true,
+            lowLatencyMode:true,
+            backBufferLength:30
+        });
+
+
+        hls.loadSource(STREAM_URL);
+
         hls.attachMedia(video);
 
-        hls.on(Hls.Events.MANIFEST_PARSED, function () {
-            video.play();
-        });
 
-    } else if (video.canPlayType('application/vnd.apple.mpegurl')) {
-        video.src = streamURL;
+        hls.on(
+            Hls.Events.MANIFEST_PARSED,
+            ()=>{
 
-        video.addEventListener('loadedmetadata', function () {
-            video.play();
-        });
+                loader.classList.remove("show");
+
+                createQualityList();
+
+                video.play().catch(()=>{
+
+                    centerPlay.classList.add("show");
+
+                    showControls();
+
+                });
+
+            }
+        );
+
+
+        hls.on(
+            Hls.Events.ERROR,
+            (event,data)=>{
+
+                if(data.fatal){
+
+                    loader.classList.add("show");
+
+                    setTimeout(()=>{
+
+                        if(hls){
+                            hls.destroy();
+                        }
+
+                        start();
+
+                    },3000);
+
+                }
+
+            }
+        );
+
     }
+
+    else if(
+        video.canPlayType(
+            "application/vnd.apple.mpegurl"
+        )
+    ){
+
+        video.src=STREAM_URL;
+
+        video.addEventListener(
+            "loadedmetadata",
+            ()=>{
+                loader.classList.remove("show");
+
+                video.play().catch(()=>{
+
+                    centerPlay.classList.add("show");
+
+                    showControls();
+
+                });
+
+            },
+            {once:true}
+        );
+
+    }
+}
+
+
+/* =========================================
+   QUALITY LIST
+========================================= */
+
+function createQualityList(){
+
+    quality.innerHTML =
+        '<option value="-1">Auto</option>';
+
+
+    if(!hls || !hls.levels.length){
+        return;
+    }
+
+
+    hls.levels.forEach(
+        (level,index)=>{
+
+            const option =
+                document.createElement("option");
+
+            option.value=index;
+
+            option.textContent =
+                level.height
+                ? level.height+"p"
+                : "Quality "+(index+1);
+
+            quality.appendChild(option);
+
+        }
+    );
+}
+
+
+/* =========================================
+   QUALITY CHANGE
+========================================= */
+
+quality.addEventListener(
+    "change",
+    e=>{
+
+        if(hls){
+
+            hls.currentLevel =
+                Number(e.target.value);
+
+        }
+
+        showControls();
+
+    }
+);
+
+
+/* =========================================
+   PLAY
+========================================= */
+
+function togglePlay(){
+
+    if(video.paused){
+
+        video.play();
+
+    }else{
+
+        video.pause();
+
+    }
+}
+
+
+play.onclick=e=>{
+
+    e.stopPropagation();
+
+    togglePlay();
+
+    showControls();
+
+};
+
+
+centerPlay.onclick=e=>{
+
+    e.stopPropagation();
+
+    togglePlay();
+
+};
+
+
+video.addEventListener(
+    "play",
+    ()=>{
+
+        play.textContent="⏸";
+
+        centerPlay.classList.remove("show");
+
+        showControls();
+
+    }
+);
+
+
+video.addEventListener(
+    "pause",
+    ()=>{
+
+        play.textContent="▶";
+
+        centerPlay.classList.add("show");
+
+        showControls();
+
+    }
+);
+
+
+/* =========================================
+   MUTE
+========================================= */
+
+mute.onclick=e=>{
+
+    e.stopPropagation();
+
+    video.muted=!video.muted;
+
+    mute.textContent =
+        video.muted ? "🔇" : "🔊";
+
+    showControls();
+
+};
+
+
+volume.oninput=()=>{
+
+    video.volume=
+        Number(volume.value);
+
+    video.muted=
+        video.volume===0;
+
+    mute.textContent=
+        video.muted ? "🔇" : "🔊";
+
+};
+
+
+/* =========================================
+   SETTINGS
+========================================= */
+
+settingsBtn.onclick=e=>{
+
+    e.stopPropagation();
+
+    settings.classList.toggle("show");
+
+    showControls();
+
+};
+
+
+document.querySelectorAll(
+    ".menuItem"
+).forEach(item=>{
+
+    item.onclick=()=>{
+
+        video.playbackRate =
+            Number(item.dataset.speed);
+
+        settings.classList.remove("show");
+
+        showControls();
+
+    };
+
+});
+
+
+/* =========================================
+   FULLSCREEN
+========================================= */
+
+fullscreen.onclick=e=>{
+
+    e.stopPropagation();
+
+    if(!document.fullscreenElement){
+
+        player.requestFullscreen();
+
+    }else{
+
+        document.exitFullscreen();
+
+    }
+
+    showControls();
+
+};
+
+
+/* =========================================
+   PROGRESS / SEEK
+========================================= */
+
+video.addEventListener(
+    "timeupdate",
+    ()=>{
+
+        if(!video.duration) return;
+
+        const percent =
+            (video.currentTime /
+             video.duration)*100;
+
+        progressFill.style.width =
+            percent+"%";
+
+        progressDot.style.left =
+            percent+"%";
+
+    }
+);
+
+
+progress.addEventListener(
+    "click",
+    e=>{
+
+        if(!video.duration) return;
+
+        const rect =
+            progress.getBoundingClientRect();
+
+        const percent =
+            (e.clientX-rect.left) /
+            rect.width;
+
+        video.currentTime =
+            percent*video.duration;
+
+        showControls();
+
+    }
+);
+
+
+/* =========================================
+   BUFFER
+========================================= */
+
+video.addEventListener(
+    "progress",
+    ()=>{
+
+        if(
+            video.buffered.length &&
+            video.duration
+        ){
+
+            const end =
+                video.buffered.end(
+                    video.buffered.length-1
+                );
+
+            buffer.style.width =
+                (end/video.duration*100)+"%";
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   LOADING
+========================================= */
+
+video.addEventListener(
+    "waiting",
+    ()=>{
+        loader.classList.add("show");
+    }
+);
+
+
+video.addEventListener(
+    "playing",
+    ()=>{
+
+        loader.classList.remove("show");
+
+        centerPlay.classList.remove("show");
+
+    }
+);
+
+
+/* =========================================
+   TAP VIDEO
+========================================= */
+
+player.addEventListener(
+    "click",
+    e=>{
+
+        if(
+            e.target.closest(".controls") ||
+            e.target.closest(".settings") ||
+            e.target===centerPlay
+        ){
+            return;
+        }
+
+        if(
+            player.classList.contains("visible")
+        ){
+
+            hideControls();
+
+        }else{
+
+            showControls();
+
+        }
+
+    }
+);
+
+
+/* =========================================
+   MOUSE
+========================================= */
+
+player.addEventListener(
+    "mousemove",
+    showControls
+);
+
+
+/* =========================================
+   TOUCH
+========================================= */
+
+player.addEventListener(
+    "touchstart",
+    showControls,
+    {passive:true}
+);
+
+
+/* =========================================
+   START
+========================================= */
+
+start();
+
 </script>
 
 </body>
