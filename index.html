@@ -1421,6 +1421,42 @@ const subtitleFile = document.getElementById('subtitleFile');
 let rotationDeg = 0;
 let controlsLocked = false;
 let subtitleObjectUrl = null;
+let boostAudioContext = null;
+let boostGainNode = null;
+let boostSourceNode = null;
+let boostEnabled = false;
+let boostPercent = 100;
+
+function setBoost(percent) {
+  boostPercent = Math.max(100, Math.min(200, Number(percent) || 100));
+  if (boostGainNode) boostGainNode.gain.setTargetAtTime(boostPercent / 100, boostAudioContext.currentTime, 0.04);
+  const label = document.getElementById('boostValue'); if (label) label.textContent = boostPercent + '%';
+}
+async function enableActualBoost() {
+  if (boostGainNode) { boostEnabled = true; setBoost(boostPercent); return true; }
+  const src = video.currentSrc || video.src;
+  if (!src || !video.currentSrc) { showPlaybackError('Start playing a video before enabling volume boost.'); return false; }
+  try {
+    const mediaUrl = new URL(src, location.href);
+    if (mediaUrl.origin !== location.origin) {
+      showPlaybackError('200% boost needs a same-origin video or a video server that allows CORS. This browser security rule cannot be bypassed by player controls.');
+      return false;
+    }
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) { showPlaybackError('This browser does not support Web Audio volume boost.'); return false; }
+    boostAudioContext = new AudioCtx();
+    boostSourceNode = boostAudioContext.createMediaElementSource(video);
+    boostGainNode = boostAudioContext.createGain();
+    boostSourceNode.connect(boostGainNode); boostGainNode.connect(boostAudioContext.destination);
+    await boostAudioContext.resume();
+    boostEnabled = true; setBoost(boostPercent);
+    return true;
+  } catch (err) {
+    console.error('Volume boost unavailable:', err);
+    showPlaybackError('Volume boost could not be enabled for this source/browser.');
+    return false;
+  }
+}
 function openFeatureMenu(title, body) {
   featureMenu.innerHTML = `<div class="featureMenuTitle">${title}</div>${body}<div class="menuRow"><span></span><button type="button" id="featureMenuClose">OK</button></div>`;
   featureMenu.classList.add('show');
@@ -1480,8 +1516,9 @@ subtitleFile.addEventListener('change', () => {
   video.appendChild(track); track.track.mode='showing'; showGestureHud('Subtitle loaded');
 });
 document.getElementById('toolMute').addEventListener('click', () => openFeatureMenu('Volume',
-  `<div class="menuRow"><button type="button" id="volumeMuteToggle">${video.muted?'🔇 Unmute':'🔊 Mute'}</button><input id="featureVolumeRange" type="range" min="0" max="1" step="0.01" value="${video.volume}"><strong id="featureVolumeValue">${Math.round(video.volume*100)}%</strong></div><div class="menuRow"><label for="rememberVolume">Remember volume level</label><input id="rememberVolume" type="checkbox" ${localStorage.getItem('wvcRememberVolume')==='1'?'checked':''}></div><div class="menuRow"><label for="resetVolume">Reset volume before playback</label><input id="resetVolume" type="checkbox" ${localStorage.getItem('wvcResetVolume')==='1'?'checked':''}></div>`));
+  `<div class="menuRow"><button type="button" id="volumeMuteToggle">${video.muted?'🔇 Unmute':'🔊 Mute'}</button><input id="featureVolumeRange" type="range" min="0" max="1" step="0.01" value="${video.volume}"><strong id="featureVolumeValue">${Math.round(video.volume*100)}%</strong></div><div class="menuRow"><label for="boostEnable">Enable volume boost</label><input id="boostEnable" type="checkbox" ${boostEnabled?'checked':''}></div><div class="menuRow"><label for="boostRange">Volume boost</label><input id="boostRange" type="range" min="100" max="200" step="5" value="${boostPercent}" ${boostEnabled?'':'disabled'}><strong id="boostValue">${boostPercent}%</strong></div><div class="menuRow"><label for="rememberVolume">Remember volume level</label><input id="rememberVolume" type="checkbox" ${localStorage.getItem('wvcRememberVolume')==='1'?'checked':''}></div><div class="menuRow"><label for="resetVolume">Reset volume before playback</label><input id="resetVolume" type="checkbox" ${localStorage.getItem('wvcResetVolume')==='1'?'checked':''}></div><small style="display:block;opacity:.75;padding:8px 2px">Boost above 100% uses browser audio amplification. Some cross-origin streams block it unless their server permits CORS.</small>`));
 featureMenu.addEventListener('input', e => {
+  if (e.target.id === 'boostRange') { setBoost(e.target.value); return; }
   if (e.target.id === 'featureVolumeRange') {
     video.volume = Number(e.target.value); video.muted = video.volume === 0;
     mute.textContent = video.muted ? '🔇' : '🔊';
@@ -1489,7 +1526,17 @@ featureMenu.addEventListener('input', e => {
     if (localStorage.getItem('wvcRememberVolume') === '1') localStorage.setItem('wvcVolume', String(video.volume));
   }
 });
-featureMenu.addEventListener('change', e => {
+featureMenu.addEventListener('change', async e => {
+  if (e.target.id === 'boostEnable') {
+    const range = document.getElementById('boostRange');
+    if (e.target.checked) {
+      const ok = await enableActualBoost();
+      if (!ok) { e.target.checked = false; boostEnabled = false; if (range) range.disabled = true; }
+      else if (range) range.disabled = false;
+    } else {
+      boostEnabled = false; setBoost(100); if (range) range.disabled = true;
+    }
+  }
   if (e.target.id === 'rememberVolume') { localStorage.setItem('wvcRememberVolume', e.target.checked ? '1' : '0'); if (e.target.checked) localStorage.setItem('wvcVolume', String(video.volume)); }
   if (e.target.id === 'resetVolume') localStorage.setItem('wvcResetVolume', e.target.checked ? '1' : '0');
 });
