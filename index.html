@@ -6,7 +6,8 @@
 
 <title>Live Player</title>
 
-<script src="https://cdn.jsdelivr.net/npm/hls.js@latest"></script>
+<script src="https://cdn.jsdelivr.net/npm/hls.js@1.5.17/dist/hls.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/dashjs@4.7.4/dist/dash.all.min.js"></script>
 
 <style>
 *{
@@ -216,7 +217,7 @@ button:active{
     position:absolute;
     right:50px;
     bottom:58px;
-    width:190px;
+    width:min(310px, calc(100vw - 28px));
     background:#181818f5;
     border-radius:10px;
     padding:7px;
@@ -351,6 +352,18 @@ button:active{
 <button class="centerPlay" id="centerPlay">▶</button>
 
 <div class="settings" id="settings">
+
+    <div class="menuTitle">Video / Stream URL</div>
+    <input id="streamUrlInput" type="url" placeholder="Paste video or stream URL"
+      style="width:100%;padding:10px;background:#222;color:#fff;border:1px solid #444;border-radius:6px;margin-bottom:7px;box-sizing:border-box;">
+    <select id="streamType" class="quality" style="margin-bottom:7px;">
+      <option value="auto">Auto detect</option>
+      <option value="hls">HLS / M3U8</option>
+      <option value="dash">DASH / MPD</option>
+      <option value="file">Direct media (MP4/MKV/etc.)</option>
+      <option value="embed">Embed player page</option>
+    </select>
+    <button id="loadStreamBtn" style="width:100%;height:38px;background:#ff0033;border-radius:6px;font-size:14px;margin-bottom:10px;">Load URL</button>
 
     <div class="menuTitle">Quality</div>
 
@@ -510,98 +523,190 @@ function hideControls(){
    HLS
 ========================================= */
 
-function start(){
+let dash = null;
+let currentUrl = STREAM_URL;
+let activeKind = "hls";
 
-    loader.classList.add("show");
+const streamUrlInput = document.getElementById("streamUrlInput");
+const streamTypeInput = document.getElementById("streamType");
+const loadStreamBtn = document.getElementById("loadStreamBtn");
 
-
-    if(Hls.isSupported()){
-
-        hls=new Hls({
-            enableWorker:true,
-            lowLatencyMode:true,
-            backBufferLength:30
-        });
-
-
-        hls.loadSource(STREAM_URL);
-
-        hls.attachMedia(video);
-
-
-        hls.on(
-            Hls.Events.MANIFEST_PARSED,
-            ()=>{
-
-                loader.classList.remove("show");
-
-                createQualityList();
-
-                video.play().catch(()=>{
-
-                    centerPlay.classList.add("show");
-
-                    showControls();
-
-                });
-
-            }
-        );
-
-
-        hls.on(
-            Hls.Events.ERROR,
-            (event,data)=>{
-
-                if(data.fatal){
-
-                    loader.classList.add("show");
-
-                    setTimeout(()=>{
-
-                        if(hls){
-                            hls.destroy();
-                        }
-
-                        start();
-
-                    },3000);
-
-                }
-
-            }
-        );
-
-    }
-
-    else if(
-        video.canPlayType(
-            "application/vnd.apple.mpegurl"
-        )
-    ){
-
-        video.src=STREAM_URL;
-
-        video.addEventListener(
-            "loadedmetadata",
-            ()=>{
-                loader.classList.remove("show");
-
-                video.play().catch(()=>{
-
-                    centerPlay.classList.add("show");
-
-                    showControls();
-
-                });
-
-            },
-            {once:true}
-        );
-
-    }
+function getKind(url, requested) {
+    if (requested && requested !== "auto") return requested;
+    let parsed;
+    try { parsed = new URL(url); } catch (_) { return "file"; }
+    const path = parsed.pathname.toLowerCase();
+    if (path.endsWith(".m3u8")) return "hls";
+    if (path.endsWith(".mpd")) return "dash";
+    if (/(youtube\.com|youtu\.be|vimeo\.com)$/i.test(parsed.hostname)) return "embed";
+    return "file";
 }
 
+function getEmbedUrl(raw) {
+    let u;
+    try { u = new URL(raw); } catch (_) { return raw; }
+    const host = u.hostname.toLowerCase().replace(/^www\./, "");
+    if (host === "youtu.be") {
+        const id = u.pathname.split("/").filter(Boolean)[0];
+        if (id) return "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id);
+    }
+    if (host.endsWith("youtube.com")) {
+        if (u.pathname.startsWith("/embed/")) return u.href;
+        const id = u.searchParams.get("v") ||
+          (u.pathname.startsWith("/shorts/") ? u.pathname.split("/")[2] : "");
+        if (id) return "https://www.youtube-nocookie.com/embed/" + encodeURIComponent(id);
+    }
+    if (host.endsWith("vimeo.com")) {
+        const id = u.pathname.split("/").filter(Boolean).find(x => /^\d+$/.test(x));
+        if (id) return "https://player.vimeo.com/video/" + id;
+    }
+    return raw;
+}
+
+function clearPlayback() {
+    if (hls) { try { hls.destroy(); } catch (_) {} hls = null; }
+    if (dash) { try { dash.reset(); } catch (_) {} dash = null; }
+    video.pause();
+    video.removeAttribute("src");
+    video.load();
+    const oldFrame = player.querySelector("iframe");
+    if (oldFrame) oldFrame.remove();
+    video.style.display = "";
+    quality.innerHTML = '<option value="-1">Auto</option>';
+}
+
+function showPlaybackError(message) {
+    loader.classList.remove("show");
+    centerPlay.classList.add("show");
+    console.warn(message);
+    alert(message);
+}
+
+function start(url = currentUrl, requestedKind = "auto") {
+    if (!url || !String(url).trim()) {
+        showPlaybackError("Paste a video or stream URL first.");
+        return;
+    }
+    url = String(url).trim();
+    let parsed;
+    try { parsed = new URL(url); } catch (_) {
+        showPlaybackError("Please enter a complete URL starting with https:// or http://");
+        return;
+    }
+    if (!["http:", "https:"].includes(parsed.protocol)) {
+        showPlaybackError("Only HTTP/HTTPS stream URLs can be loaded in this web player.");
+        return;
+    }
+
+    currentUrl = url;
+    activeKind = getKind(url, requestedKind);
+    clearPlayback();
+    loader.classList.add("show");
+    centerPlay.classList.remove("show");
+
+    if (activeKind === "embed") {
+        video.style.display = "none";
+        const frame = document.createElement("iframe");
+        frame.src = getEmbedUrl(url);
+        frame.allow = "autoplay; encrypted-media; picture-in-picture; fullscreen";
+        frame.allowFullscreen = true;
+        frame.title = "Embedded video";
+        frame.style.cssText = "position:absolute;inset:0;width:100%;height:100%;border:0;background:#000;";
+        player.insertBefore(frame, player.querySelector(".topShade"));
+        loader.classList.remove("show");
+        showControls();
+        return;
+    }
+
+    video.style.display = "";
+    video.controls = false;
+
+    if (activeKind === "hls") {
+        if (video.canPlayType("application/vnd.apple.mpegurl")) {
+            video.src = url;
+            video.addEventListener("loadedmetadata", onMetadata, {once:true});
+            video.addEventListener("error", () => showPlaybackError("HLS playback failed. Check stream URL, CORS, expiry, or access restrictions."), {once:true});
+            video.load();
+        } else if (window.Hls && Hls.isSupported()) {
+            hls = new Hls({enableWorker:true, lowLatencyMode:true, backBufferLength:30});
+            hls.loadSource(url);
+            hls.attachMedia(video);
+            hls.on(Hls.Events.MANIFEST_PARSED, () => {
+                loader.classList.remove("show");
+                createQualityList();
+                video.play().catch(() => { centerPlay.classList.add("show"); showControls(); });
+            });
+            hls.on(Hls.Events.ERROR, (_, data) => {
+                if (data.fatal) showPlaybackError("HLS error. The stream may be blocked by CORS, expired, private, or unavailable.");
+            });
+        } else {
+            showPlaybackError("This browser does not support HLS playback.");
+        }
+        return;
+    }
+
+    if (activeKind === "dash") {
+        if (window.dashjs && dashjs.supportsMediaSource()) {
+            dash = dashjs.MediaPlayer().create();
+            dash.initialize(video, url, false);
+            dash.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => {
+                loader.classList.remove("show");
+                video.play().catch(() => { centerPlay.classList.add("show"); showControls(); });
+            });
+            dash.on(dashjs.MediaPlayer.events.ERROR, () => showPlaybackError("DASH playback failed. Check URL, CORS, and stream access."));
+        } else {
+            showPlaybackError("MPEG-DASH is not supported in this browser.");
+        }
+        return;
+    }
+
+    // Direct media: includes MKV/AVI/WMV/FLV extensions, but actual playback depends on browser codecs.
+    video.src = url;
+    video.addEventListener("loadedmetadata", onMetadata, {once:true});
+    video.addEventListener("error", () => {
+        const ext = (parsed.pathname.split(".").pop() || "").toLowerCase();
+        const extra = ["mkv","avi","wmv","flv","mov","ts","m2ts"].includes(ext)
+          ? " This container/codec is often unsupported by browsers; reliable support requires a server-side converter/remuxer."
+          : "";
+        showPlaybackError("Direct playback failed. The URL may be blocked/expired, or the browser may not support its codec." + extra);
+    }, {once:true});
+    video.load();
+}
+
+function onMetadata() {
+    loader.classList.remove("show");
+    video.play().catch(() => { centerPlay.classList.add("show"); showControls(); });
+}
+
+loadStreamBtn.addEventListener("click", e => {
+    e.stopPropagation();
+    const val = streamUrlInput.value.trim();
+    start(val, streamTypeInput.value);
+    settings.classList.remove("show");
+});
+streamUrlInput.addEventListener("keydown", e => {
+    if (e.key === "Enter") {
+        e.preventDefault();
+        start(streamUrlInput.value.trim(), streamTypeInput.value);
+        settings.classList.remove("show");
+    }
+});
+
+// Allow sharing/deep-linking a URL as ?url=https%3A%2F%2F...&type=auto
+try {
+    const params = new URLSearchParams(location.search);
+    const supplied = params.get("url");
+    const suppliedType = params.get("type") || "auto";
+    if (supplied) {
+        currentUrl = supplied;
+        streamUrlInput.value = supplied;
+        streamTypeInput.value = suppliedType;
+    } else {
+        streamUrlInput.value = STREAM_URL;
+    }
+} catch (_) {
+    streamUrlInput.value = STREAM_URL;
+}
 
 /* =========================================
    QUALITY LIST
@@ -647,10 +752,7 @@ quality.addEventListener(
     e=>{
 
         if(hls){
-
-            hls.currentLevel =
-                Number(e.target.value);
-
+            hls.currentLevel = Number(e.target.value);
         }
 
         showControls();
