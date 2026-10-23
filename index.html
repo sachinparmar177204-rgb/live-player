@@ -247,6 +247,17 @@ button:active{
     background:#ffffff15;
 }
 
+/* SEEK CONTROLS + DOUBLE-TAP FEEDBACK */
+.seekButton{font-size:14px;gap:2px;white-space:nowrap;width:48px;font-weight:600;}
+.timeDisplay{color:#fff;font-size:12px;font-variant-numeric:tabular-nums;white-space:nowrap;padding:0 4px;opacity:.92;}
+.seekFeedback{position:absolute;top:50%;transform:translateY(-50%);width:112px;height:112px;border-radius:50%;background:#0009;color:#fff;display:none;align-items:center;justify-content:center;flex-direction:column;gap:5px;pointer-events:none;z-index:5;font-size:25px;}
+.seekFeedback small{font-size:12px;font-weight:600;}
+.seekFeedback.left{left:14%;}
+.seekFeedback.right{right:14%;}
+.seekFeedback.show{display:flex;animation:seekPop .45s ease-out;}
+@keyframes seekPop{0%{opacity:.25;transform:translateY(-50%) scale(.82)}35%{opacity:1;transform:translateY(-50%) scale(1)}100%{opacity:.95;transform:translateY(-50%) scale(1)}}
+@media(max-width:600px){.seekButton{width:42px;font-size:12px}.timeDisplay{font-size:10px;padding:0 2px}.seekFeedback{width:82px;height:82px}.seekFeedback.left{left:8%}.seekFeedback.right{right:8%}}
+
 /* CENTER */
 
 .centerPlay{
@@ -307,8 +318,11 @@ button:active{
     outline:none;
 }
 
-/* MOBILE */
-
+/* ASPECT RATIO + GESTURE HUD */
+.settings{max-height:calc(100% - 90px);overflow-y:auto;overscroll-behavior:contain;}
+.gestureHud{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%);z-index:8;display:none;align-items:center;gap:10px;padding:12px 16px;border-radius:12px;background:#000c;color:#fff;font-size:14px;font-weight:600;pointer-events:none;white-space:nowrap;}
+.gestureHud.show{display:flex;}
+#pipBtn{font-size:17px;}
 @media(max-width:600px){
 
     .controls{
@@ -326,9 +340,9 @@ button:active{
     }
 
     .settings{
-        right:40px;
-        bottom:52px;
-        width:170px;
+        right:7px;
+        bottom:48px;
+        width:min(310px, calc(100vw - 14px));
     }
 
     .volumeRange{
@@ -343,11 +357,14 @@ button:active{
 <div class="player" id="player">
 
 <video id="video" playsinline></video>
+<div class="seekFeedback left" id="seekFeedbackLeft" aria-hidden="true">↺ <small>10 seconds</small></div>
+<div class="seekFeedback right" id="seekFeedbackRight" aria-hidden="true">↻ <small>10 seconds</small></div>
 
 <div class="topShade"></div>
 <div class="bottomShade"></div>
 
 <div class="loader" id="loader"></div>
+<div class="gestureHud" id="gestureHud" aria-live="polite"></div>
 
 <button class="centerPlay" id="centerPlay">▶</button>
 
@@ -367,8 +384,15 @@ button:active{
 
     <div class="menuTitle">Quality</div>
 
-    <select class="quality" id="quality">
+    <select class="quality" id="quality" aria-label="Playback quality">
         <option value="-1">Auto</option>
+    </select>
+
+    <div class="menuTitle">Aspect ratio</div>
+    <select class="quality" id="aspectRatio" aria-label="Aspect ratio">
+        <option value="fit">Fit (original ratio)</option>
+        <option value="fill">Fill screen</option>
+        <option value="zoom">Zoom 1.25×</option>
     </select>
 
     <div class="menuTitle">Playback speed</div>
@@ -394,7 +418,10 @@ button:active{
 
     <div class="row">
 
-        <button id="play">▶</button>
+        <button id="play" aria-label="Play or pause">▶</button>
+        <button id="skipBack" class="seekButton" aria-label="Go back 10 seconds" title="Back 10 seconds">↺10</button>
+        <button id="skipForward" class="seekButton" aria-label="Forward 10 seconds" title="Forward 10 seconds">10↻</button>
+        <span class="timeDisplay" id="timeDisplay">0:00 / 0:00</span>
 
         <div class="volumeBox">
 
@@ -418,9 +445,9 @@ button:active{
             LIVE
         </div>
 
-        <button id="settingsBtn">⚙</button>
-
-        <button id="fullscreen">⛶</button>
+        <button id="pipBtn" aria-label="Picture in picture" title="Picture-in-Picture">▣</button>
+        <button id="settingsBtn" aria-label="Settings">⚙</button>
+        <button id="fullscreen" aria-label="Fullscreen">⛶</button>
 
     </div>
 
@@ -482,7 +509,23 @@ document.getElementById("progressDot");
 
 const buffer =
 document.getElementById("buffer");
-
+const pipBtn = document.getElementById("pipBtn");
+const aspectRatio = document.getElementById("aspectRatio");
+const gestureHud = document.getElementById("gestureHud");
+const skipBack = document.getElementById("skipBack");
+const skipForward = document.getElementById("skipForward");
+const timeDisplay = document.getElementById("timeDisplay");
+const seekFeedbackLeft = document.getElementById("seekFeedbackLeft");
+const seekFeedbackRight = document.getElementById("seekFeedbackRight");
+let seekFeedbackTimer = null;
+let lastTapTime = 0;
+let lastTapX = 0;
+let pendingSingleTap = null;
+let gestureHudTimer = null;
+let gestureState = null;
+let suppressTapUntil = 0;
+let currentBrightness = 1;
+let dashVideoRepresentations = [];
 
 let hls=null;
 let hideTimer=null;
@@ -532,13 +575,27 @@ const streamTypeInput = document.getElementById("streamType");
 const loadStreamBtn = document.getElementById("loadStreamBtn");
 
 function getKind(url, requested) {
+    // Respect a manual selection; otherwise detect common streaming manifests.
     if (requested && requested !== "auto") return requested;
     let parsed;
     try { parsed = new URL(url); } catch (_) { return "file"; }
+
+    const host = parsed.hostname.toLowerCase().replace(/^www\./, "");
     const path = parsed.pathname.toLowerCase();
-    if (path.endsWith(".m3u8")) return "hls";
-    if (path.endsWith(".mpd")) return "dash";
-    if (/(youtube\.com|youtu\.be|vimeo\.com)$/i.test(parsed.hostname)) return "embed";
+    const whole = (parsed.pathname + parsed.search).toLowerCase();
+
+    // Video-host pages need their official embedded player rather than <video src>.
+    if (host === "youtu.be" || host === "youtube.com" || host.endsWith(".youtube.com") ||
+        host === "vimeo.com" || host.endsWith(".vimeo.com")) return "embed";
+
+    // Manifest URLs may contain query parameters/tokens, so do not rely only on the extension.
+    if (/\.m3u8(?:$|[?&/])/.test(whole) || /(?:format|type|output)=hls\b/.test(whole)) return "hls";
+    if (/\.mpd(?:$|[?&/])/.test(whole) || /(?:format|type|output)=dash\b/.test(whole)) return "dash";
+
+    // Common direct-media containers. The browser still decides whether its codecs can decode them.
+    if (/\.(mp4|m4v|mkv|webm|ogv|ogg|mov|avi|wmv|flv|f4v|3gp|3g2|mpg|mpeg|m2v|ts|m2ts|mts|vob|asf|mxf|rm|rmvb|divx)(?:$|[?&/])/.test(whole)) return "file";
+
+    // Unknown URLs are attempted as direct media; use the dropdown to force HLS/DASH/embed if needed.
     return "file";
 }
 
@@ -598,6 +655,7 @@ function start(url = currentUrl, requestedKind = "auto") {
         return;
     }
 
+    savePlaybackPosition();
     currentUrl = url;
     activeKind = getKind(url, requestedKind);
     clearPlayback();
@@ -605,6 +663,9 @@ function start(url = currentUrl, requestedKind = "auto") {
     centerPlay.classList.remove("show");
 
     if (activeKind === "embed") {
+        pipBtn.disabled = true;
+        pipBtn.style.opacity = ".4";
+        pipBtn.title = "Picture-in-Picture is unavailable for this embedded page";
         video.style.display = "none";
         const frame = document.createElement("iframe");
         frame.src = getEmbedUrl(url);
@@ -619,6 +680,9 @@ function start(url = currentUrl, requestedKind = "auto") {
     }
 
     video.style.display = "";
+    pipBtn.disabled = !(document.pictureInPictureEnabled && video.requestPictureInPicture);
+    pipBtn.style.opacity = pipBtn.disabled ? ".4" : "1";
+    pipBtn.title = pipBtn.disabled ? "Picture-in-Picture is not supported by this browser" : "Picture-in-Picture";
     video.controls = false;
 
     if (activeKind === "hls") {
@@ -634,6 +698,7 @@ function start(url = currentUrl, requestedKind = "auto") {
             hls.on(Hls.Events.MANIFEST_PARSED, () => {
                 loader.classList.remove("show");
                 createQualityList();
+                restorePlaybackPosition();
                 video.play().catch(() => { centerPlay.classList.add("show"); showControls(); });
             });
             hls.on(Hls.Events.ERROR, (_, data) => {
@@ -651,6 +716,7 @@ function start(url = currentUrl, requestedKind = "auto") {
             dash.initialize(video, url, false);
             dash.on(dashjs.MediaPlayer.events.STREAM_INITIALIZED, () => {
                 loader.classList.remove("show");
+                createDashQualityList();
                 video.play().catch(() => { centerPlay.classList.add("show"); showControls(); });
             });
             dash.on(dashjs.MediaPlayer.events.ERROR, () => showPlaybackError("DASH playback failed. Check URL, CORS, and stream access."));
@@ -660,13 +726,13 @@ function start(url = currentUrl, requestedKind = "auto") {
         return;
     }
 
-    // Direct media: includes MKV/AVI/WMV/FLV extensions, but actual playback depends on browser codecs.
+    // Try any direct media URL (MP4, MKV, WebM, MOV, AVI, 3GP, MPEG, TS, VOB, WMV, FLV, etc.). Actual playback depends on browser codecs.
     video.src = url;
     video.addEventListener("loadedmetadata", onMetadata, {once:true});
     video.addEventListener("error", () => {
         const ext = (parsed.pathname.split(".").pop() || "").toLowerCase();
-        const extra = ["mkv","avi","wmv","flv","mov","ts","m2ts"].includes(ext)
-          ? " This container/codec is often unsupported by browsers; reliable support requires a server-side converter/remuxer."
+        const extra = ["mkv","avi","wmv","flv","mov","ts","m2ts","mts","vob","asf","mxf","rm","rmvb","divx","mpg","mpeg","3gp","3g2","f4v"].includes(ext)
+          ? " This container or its codec may not be supported by the browser. A server-side converter/remuxer can expand compatibility, but needs a separate backend."
           : "";
         showPlaybackError("Direct playback failed. The URL may be blocked/expired, or the browser may not support its codec." + extra);
     }, {once:true});
@@ -675,6 +741,7 @@ function start(url = currentUrl, requestedKind = "auto") {
 
 function onMetadata() {
     loader.classList.remove("show");
+    restorePlaybackPosition();
     video.play().catch(() => { centerPlay.classList.add("show"); showControls(); });
 }
 
@@ -742,6 +809,20 @@ function createQualityList(){
     );
 }
 
+function createDashQualityList() {
+    quality.innerHTML = '<option value="-1">Auto</option>';
+    dashVideoRepresentations = [];
+    if (!dash || typeof dash.getBitrateInfoListFor !== "function") return;
+    try { dashVideoRepresentations = dash.getBitrateInfoListFor("video") || []; } catch (_) { return; }
+    dashVideoRepresentations.forEach((rep, index) => {
+        const option = document.createElement("option");
+        option.value = String(index);
+        const height = rep.height ? `${rep.height}p` : `Quality ${index + 1}`;
+        const bitrate = rep.bitrate ? ` · ${(rep.bitrate / 1000).toFixed(0)} kbps` : "";
+        option.textContent = height + bitrate;
+        quality.appendChild(option);
+    });
+}
 
 /* =========================================
    QUALITY CHANGE
@@ -751,15 +832,207 @@ quality.addEventListener(
     "change",
     e=>{
 
-        if(hls){
-            hls.currentLevel = Number(e.target.value);
+        const selected = Number(e.target.value);
+        if (hls) {
+            hls.currentLevel = selected;
+        } else if (dash && typeof dash.setQualityFor === "function") {
+            try {
+                dash.setAutoSwitchQualityFor("video", selected === -1);
+                if (selected >= 0) dash.setQualityFor("video", selected);
+            } catch (err) { console.warn("Could not change DASH quality", err); }
         }
-
         showControls();
 
     }
 );
 
+
+/* =========================================
+   PICTURE-IN-PICTURE + ASPECT RATIO
+========================================= */
+pipBtn.addEventListener("click", async e => {
+    e.stopPropagation();
+    try {
+        if (!document.pictureInPictureEnabled || !video.requestPictureInPicture) {
+            showPlaybackError("Picture-in-Picture is not supported for this video/browser.");
+            return;
+        }
+        if (document.pictureInPictureElement === video) await document.exitPictureInPicture();
+        else await video.requestPictureInPicture();
+    } catch (err) {
+        showPlaybackError("Picture-in-Picture could not start. Try playing the video first or check browser support.");
+    }
+    showControls();
+});
+
+function applyAspectRatio(mode) {
+    video.style.transform = "none";
+    video.style.objectFit = "contain";
+    if (mode === "fill") video.style.objectFit = "cover";
+    if (mode === "zoom") {
+        video.style.objectFit = "contain";
+        video.style.transform = "scale(1.25)";
+    }
+}
+aspectRatio.addEventListener("change", () => {
+    applyAspectRatio(aspectRatio.value);
+    showControls();
+});
+
+/* =========================================
+   RESUME PLAYBACK
+========================================= */
+function positionStorageKey(url = currentUrl) {
+    // Short stable key so very long signed stream URLs do not become oversized storage keys.
+    let hash = 2166136261;
+    const value = String(url || "");
+    for (let i = 0; i < value.length; i++) {
+        hash ^= value.charCodeAt(i);
+        hash = Math.imul(hash, 16777619);
+    }
+    return "proPlayerPosition:" + (hash >>> 0).toString(16);
+}
+
+function savePlaybackPosition() {
+    try {
+        if (!currentUrl || !Number.isFinite(video.currentTime) || video.currentTime < 5) return;
+        if (!Number.isFinite(video.duration) || video.duration <= 0) return; // Do not persist live/DVR positions.
+        if (video.currentTime >= video.duration - 3) {
+            localStorage.removeItem(positionStorageKey());
+            return;
+        }
+        localStorage.setItem(positionStorageKey(), JSON.stringify({
+            time: video.currentTime,
+            duration: video.duration,
+            savedAt: Date.now()
+        }));
+    } catch (_) { /* Storage may be disabled; playback still works. */ }
+}
+
+function restorePlaybackPosition() {
+    try {
+        if (!currentUrl || !Number.isFinite(video.duration) || video.duration <= 0) return;
+        const raw = localStorage.getItem(positionStorageKey());
+        if (!raw) return;
+        const saved = JSON.parse(raw);
+        if (!saved || !Number.isFinite(saved.time) || saved.time < 5) return;
+        // Only restore if duration is reasonably similar, avoiding stale positions for changed content.
+        if (Number.isFinite(saved.duration) && Math.abs(saved.duration - video.duration) > Math.max(120, video.duration * 0.08)) return;
+        if (saved.time >= video.duration - 3) return;
+        video.currentTime = Math.min(saved.time, video.duration - 1);
+        showResumeNotice(saved.time);
+    } catch (_) { /* Storage may be disabled or this stream may not be seekable. */ }
+}
+
+function showResumeNotice(seconds) {
+    showGestureHud(`▶ Resume from ${formatTime(seconds)}`);
+}
+
+video.addEventListener("timeupdate", savePlaybackPosition);
+window.addEventListener("pagehide", savePlaybackPosition);
+window.addEventListener("beforeunload", savePlaybackPosition);
+
+/* =========================================
+   TOUCH BRIGHTNESS / VOLUME GESTURES
+   Swipe vertically on left side for brightness, right side for volume.
+========================================= */
+function showGestureHud(message) {
+    gestureHud.textContent = message;
+    gestureHud.classList.add("show");
+    clearTimeout(gestureHudTimer);
+    gestureHudTimer = setTimeout(() => gestureHud.classList.remove("show"), 900);
+}
+
+video.addEventListener("touchstart", e => {
+    if (!e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const rect = video.getBoundingClientRect();
+    gestureState = {
+        startX: t.clientX, startY: t.clientY,
+        lastY: t.clientY, width: rect.width,
+        side: t.clientX < rect.left + rect.width / 2 ? "brightness" : "volume",
+        startBrightness: currentBrightness,
+        startVolume: video.muted ? 0 : video.volume,
+        moved: false
+    };
+}, {passive:true});
+
+video.addEventListener("touchmove", e => {
+    if (!gestureState || !e.touches || e.touches.length !== 1) return;
+    const t = e.touches[0];
+    const dy = gestureState.startY - t.clientY;
+    if (Math.abs(dy) < 12 && !gestureState.moved) return;
+    gestureState.moved = true;
+    suppressTapUntil = Date.now() + 500;
+    clearTimeout(pendingSingleTap);
+    pendingSingleTap = null;
+    const change = dy / Math.max(160, gestureState.width) * 1.4;
+    if (gestureState.side === "brightness") {
+        currentBrightness = Math.max(0.35, Math.min(1.5, gestureState.startBrightness + change));
+        video.style.filter = `brightness(${currentBrightness})`;
+        showGestureHud(`☀ Brightness ${Math.round(currentBrightness * 100)}%`);
+    } else {
+        const nextVolume = Math.max(0, Math.min(1, gestureState.startVolume + change));
+        video.volume = nextVolume;
+        video.muted = nextVolume === 0;
+        mute.textContent = video.muted ? "🔇" : "🔊";
+        volume.value = String(nextVolume);
+        showGestureHud(`🔊 Volume ${Math.round(nextVolume * 100)}%`);
+    }
+}, {passive:true});
+
+video.addEventListener("touchend", () => {
+    if (gestureState && gestureState.moved) {
+        suppressTapUntil = Date.now() + 500;
+        showControls();
+    }
+    gestureState = null;
+}, {passive:true});
+
+/* =========================================
+   SEEK HELPERS
+========================================= */
+function formatTime(seconds) {
+    if (!Number.isFinite(seconds) || seconds < 0) return "LIVE";
+    const whole = Math.floor(seconds);
+    const h = Math.floor(whole / 3600);
+    const m = Math.floor((whole % 3600) / 60);
+    const sec = whole % 60;
+    return h > 0 ? `${h}:${String(m).padStart(2,"0")}:${String(sec).padStart(2,"0")}` : `${m}:${String(sec).padStart(2,"0")}`;
+}
+
+function seekBy(delta) {
+    // Live streams may expose only a short seekable DVR window; use it when available.
+    let min = 0;
+    let max = Number.isFinite(video.duration) ? video.duration : NaN;
+    if (video.seekable && video.seekable.length) {
+        min = video.seekable.start(0);
+        max = video.seekable.end(video.seekable.length - 1);
+    }
+    if (!Number.isFinite(max) || max <= min) return;
+    const target = Math.max(min, Math.min(max, (Number.isFinite(video.currentTime) ? video.currentTime : min) + delta));
+    try { video.currentTime = target; } catch (_) { return; }
+    showSeekFeedback(delta < 0 ? "left" : "right", Math.abs(delta));
+    showControls();
+}
+
+function showSeekFeedback(side, seconds) {
+    const el = side === "left" ? seekFeedbackLeft : seekFeedbackRight;
+    const other = side === "left" ? seekFeedbackRight : seekFeedbackLeft;
+    other.classList.remove("show");
+    el.innerHTML = `${side === "left" ? "↺" : "↻"}<small>${seconds} seconds</small>`;
+    el.classList.remove("show");
+    void el.offsetWidth;
+    el.classList.add("show");
+    clearTimeout(seekFeedbackTimer);
+    seekFeedbackTimer = setTimeout(() => {
+        seekFeedbackLeft.classList.remove("show");
+        seekFeedbackRight.classList.remove("show");
+    }, 650);
+}
+
+skipBack.addEventListener("click", e => { e.stopPropagation(); seekBy(-10); });
+skipForward.addEventListener("click", e => { e.stopPropagation(); seekBy(10); });
 
 /* =========================================
    PLAY
@@ -934,6 +1207,7 @@ video.addEventListener(
 
         progressDot.style.left =
             percent+"%";
+        if (timeDisplay) timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
 
     }
 );
@@ -964,6 +1238,13 @@ progress.addEventListener(
 /* =========================================
    BUFFER
 ========================================= */
+
+video.addEventListener("loadedmetadata", () => {
+    if (timeDisplay) timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+});
+video.addEventListener("durationchange", () => {
+    if (timeDisplay) timeDisplay.textContent = `${formatTime(video.currentTime)} / ${formatTime(video.duration)}`;
+});
 
 video.addEventListener(
     "progress",
@@ -1013,35 +1294,46 @@ video.addEventListener(
 
 
 /* =========================================
-   TAP VIDEO
+   TAP VIDEO — DOUBLE TAP TO SEEK 10 SECONDS
 ========================================= */
+player.addEventListener("click", e => {
+    if (Date.now() < suppressTapUntil) return;
+    if (e.target.closest(".controls") || e.target.closest(".settings") || e.target === centerPlay || e.target.closest(".seekFeedback")) return;
+    if (e.target.closest("button")) return;
 
-player.addEventListener(
-    "click",
-    e=>{
+    const now = Date.now();
+    const rect = player.getBoundingClientRect();
+    const x = e.clientX - rect.left;
+    const isSecondTap = (now - lastTapTime < 320) && (Math.abs(x - lastTapX) < rect.width * 0.28);
 
-        if(
-            e.target.closest(".controls") ||
-            e.target.closest(".settings") ||
-            e.target===centerPlay
-        ){
-            return;
-        }
-
-        if(
-            player.classList.contains("visible")
-        ){
-
-            hideControls();
-
-        }else{
-
-            showControls();
-
-        }
-
+    if (isSecondTap) {
+        clearTimeout(pendingSingleTap);
+        pendingSingleTap = null;
+        // Left third rewinds, right third skips forward; center double-tap toggles playback.
+        if (x < rect.width / 3) seekBy(-10);
+        else if (x > rect.width * 2 / 3) seekBy(10);
+        else togglePlay();
+        lastTapTime = 0;
+        return;
     }
-);
+
+    lastTapTime = now;
+    lastTapX = x;
+    clearTimeout(pendingSingleTap);
+    pendingSingleTap = setTimeout(() => {
+        if (player.classList.contains("visible")) hideControls();
+        else showControls();
+    }, 230);
+});
+
+// Keyboard shortcuts when the player is not focused on a text field.
+document.addEventListener("keydown", e => {
+    if (e.target && (e.target.matches("input, textarea, select") || e.target.isContentEditable)) return;
+    if (!player.contains(e.target) && document.activeElement !== document.body) return;
+    if (e.key === "ArrowLeft") { e.preventDefault(); seekBy(-10); }
+    else if (e.key === "ArrowRight") { e.preventDefault(); seekBy(10); }
+    else if (e.key === " " || e.key.toLowerCase() === "k") { e.preventDefault(); togglePlay(); showControls(); }
+});
 
 
 /* =========================================
@@ -1069,6 +1361,9 @@ player.addEventListener(
    START
 ========================================= */
 
+applyAspectRatio(aspectRatio.value);
+pipBtn.disabled = !(document.pictureInPictureEnabled && video.requestPictureInPicture);
+pipBtn.style.opacity = pipBtn.disabled ? ".4" : "1";
 start();
 
 </script>
